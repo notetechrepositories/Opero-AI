@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./VoiceFirst-AI
+      dockerfile: Dockerfile
+    container_name: vf_backend
+    ports:
+      - "8000:8000"
+    # Mount the .env file so MongoDB URI and Groq API keys are loaded
+    env_file:
+      - ./VoiceFirst-AI/.env
+    restart: always
+
+  frontend:
+    build:
+      context: ./vf-ai-frontend/frontend
+      dockerfile: Dockerfile
+    container_name: vf_frontend
+    ports:
+      - "3000:3000"
+    # Ensure backend starts first
+    depends_on:
+      - backend
+    restart: always

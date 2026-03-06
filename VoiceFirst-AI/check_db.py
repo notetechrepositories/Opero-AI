@@ -1,0 +1,19 @@
+import os
+from pymongo import MongoClient
+from dotenv import load_dotenv
+
+load_dotenv()
+
+MONGO_URI = os.getenv("MONGO_URI")
+client = MongoClient(MONGO_URI)
+db = client["voicefirst_ai"]
+
+def print_one(collection_name):
+    print(f"--- {collection_name} ---")
+    doc = db[collection_name].find_one({}, {"_id": 0})
+    print(doc)
+
+print_one("Companies")
+print_one("Branches")
+print_one("Section")
+print_one("Issue_Type")

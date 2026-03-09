@@ -6,6 +6,8 @@ import TicketList from "./components/TicketList";
 import Login from "./components/Login";
 import ProtectedRoute from "./components/ProtectedRoute";
 import UserManagement from "./components/UserManagement";
+import CompanyList from "./components/CompanyList";
+import CompanyDetails from "./components/CompanyDetails";
 import { useAuth } from "./context/AuthContext";
 
 const Layout = ({ children }) => {
@@ -39,6 +41,11 @@ const Layout = ({ children }) => {
           {user && (user.role === "SuperAdmin" || user.role === "CompanyAdmin") && (
             <NavLink to="/users" className={({ isActive }) => (isActive ? "nav-item active" : "nav-item")}>
               👥 User Management
+            </NavLink>
+          )}
+          {user && (
+            <NavLink to="/companies" className={({ isActive }) => (isActive ? "nav-item active" : "nav-item")}>
+              🏢 Companies
             </NavLink>
           )}
           <div className="nav-item">
@@ -90,6 +97,8 @@ function App() {
         <Route path="/raise-ticket" element={<Layout><RaiseTicket /></Layout>} />
         <Route path="/tickets" element={<Layout><ProtectedRoute><TicketList /></ProtectedRoute></Layout>} />
         <Route path="/users" element={<Layout><ProtectedRoute allowedRoles={["SuperAdmin", "CompanyAdmin"]}><UserManagement /></ProtectedRoute></Layout>} />
+        <Route path="/companies" element={<Layout><ProtectedRoute><CompanyList /></ProtectedRoute></Layout>} />
+        <Route path="/companies/:companyId" element={<Layout><ProtectedRoute><CompanyDetails /></ProtectedRoute></Layout>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>

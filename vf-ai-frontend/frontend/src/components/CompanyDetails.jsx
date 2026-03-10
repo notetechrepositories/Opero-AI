@@ -8,6 +8,7 @@ function CompanyDetails() {
     const navigate = useNavigate();
 
     const [companyName, setCompanyName] = useState("");
+    const [industry, setIndustry] = useState("");
     const [branches, setBranches] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -20,8 +21,10 @@ function CompanyDetails() {
                 const matchedCompany = compRes.data.find(c => c.company_code === companyId);
                 if (matchedCompany) {
                     setCompanyName(matchedCompany.company_name);
+                    setIndustry(matchedCompany.industry || "Not Specified");
                 } else {
                     setCompanyName(companyId);
+                    setIndustry("Not Specified");
                 }
 
                 const branchRes = await axios.get(`/api/branches?company_code=${companyId}`);
@@ -93,15 +96,15 @@ function CompanyDetails() {
                     >
                         ←
                     </button>
-                    <div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
-                            <h2 style={{ margin: 0, fontSize: '28px', fontWeight: '700', letterSpacing: '-0.02em' }}>
-                                {companyName}
+                    <div style={{ width: '100%', zIndex: 1 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '16px' }}>
+                            <h2 style={{ margin: 0, fontSize: '24px', fontWeight: '700', letterSpacing: '-0.02em', color: 'white' }}>
+                                Company Details
                             </h2>
                             <span style={{
                                 background: 'rgba(79, 70, 229, 0.2)',
                                 color: '#A5B4FC',
-                                padding: '4px 10px',
+                                padding: '4px 12px',
                                 borderRadius: '999px',
                                 fontSize: '13px',
                                 fontWeight: '600',
@@ -110,10 +113,20 @@ function CompanyDetails() {
                                 {companyId}
                             </span>
                         </div>
-                        <p style={{ margin: 0, color: '#94A3B8', fontSize: '15px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            <span>Total Branches: </span>
-                            <strong style={{ color: 'white' }}>{branches.length}</strong>
-                        </p>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center' }}>
+                                <span style={{ color: '#94A3B8', fontSize: '14px', width: '140px', fontWeight: '500' }}>Company Name:</span>
+                                <strong style={{ color: 'white', fontSize: '16px', fontWeight: '600' }}>{companyName}</strong>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center' }}>
+                                <span style={{ color: '#94A3B8', fontSize: '14px', width: '140px', fontWeight: '500' }}>Industry:</span>
+                                <strong style={{ color: 'white', fontSize: '16px', fontWeight: '600' }}>{industry}</strong>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center' }}>
+                                <span style={{ color: '#94A3B8', fontSize: '14px', width: '140px', fontWeight: '500' }}>Total Branches:</span>
+                                <strong style={{ color: 'white', fontSize: '16px', fontWeight: '600' }}>{branches.length}</strong>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>

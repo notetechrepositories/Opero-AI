@@ -18,6 +18,8 @@ function CompanyList() {
         const fetchCompanies = async () => {
             try {
                 const res = await axios.get("/api/companies");
+                console.log(res.data);
+
                 setCompanies(res.data);
             } catch (err) {
                 console.error("Failed to fetch companies:", err);
@@ -37,7 +39,7 @@ function CompanyList() {
 
     // Derived state for filtering and pagination
     const filteredCompanies = companies.filter(company =>
-        (company.company_name || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (company.name || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
         (company.company_code || "").toLowerCase().includes(searchTerm.toLowerCase())
     );
 
@@ -74,7 +76,7 @@ function CompanyList() {
             }}>
                 <div>
                     <h2 className="title" style={{ margin: 0, fontSize: '28px', background: 'linear-gradient(135deg, #1E293B, #475569)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-                        Connected Companies
+                        Companies
                     </h2>
                     <p className="subtitle" style={{ margin: '8px 0 0 0', fontSize: '15px' }}>
                         Manage corporate clients and view branch analytics.
@@ -100,6 +102,7 @@ function CompanyList() {
                     <thead>
                         <tr style={{ backgroundColor: '#F8FAFC', borderBottom: '1px solid #E2E8F0' }}>
                             <th style={{ padding: '16px 24px', textAlign: 'left', color: '#64748B', fontWeight: '600', fontSize: '13px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Company</th>
+                            <th style={{ padding: '16px 24px', textAlign: 'left', color: '#64748B', fontWeight: '600', fontSize: '13px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Industry</th>
                             <th style={{ padding: '16px 24px', textAlign: 'left', color: '#64748B', fontWeight: '600', fontSize: '13px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Code</th>
                             <th style={{ padding: '16px 24px', textAlign: 'right', color: '#64748B', fontWeight: '600', fontSize: '13px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Action</th>
                         </tr>
@@ -132,12 +135,17 @@ function CompanyList() {
                                                 fontWeight: '600',
                                                 fontSize: '14px',
                                             }}>
-                                                {company.company_name ? company.company_name.substring(0, 1).toUpperCase() : 'C'}
+                                                {company.name ? company.name.substring(0, 1).toUpperCase() : 'C'}
                                             </div>
                                             <span style={{ fontWeight: '500', color: '#0F172A', fontSize: '15px' }}>
-                                                {company.company_name}
+                                                {company.name}
                                             </span>
                                         </div>
+                                    </td>
+                                    <td style={{ padding: '16px 24px', verticalAlign: 'middle' }}>
+                                        <span style={{ fontWeight: '500', color: '#334155', fontSize: '14px' }}>
+                                            {company.industry || <span style={{ color: '#94A3B8', fontStyle: 'italic' }}>Not Specified</span>}
+                                        </span>
                                     </td>
                                     <td style={{ padding: '16px 24px', verticalAlign: 'middle' }}>
                                         <span style={{
@@ -185,7 +193,7 @@ function CompanyList() {
                             ))
                         ) : (
                             <tr>
-                                <td colSpan={3} style={{ padding: '40px', textAlign: 'center', color: '#64748B' }}>
+                                <td colSpan={4} style={{ padding: '40px', textAlign: 'center', color: '#64748B' }}>
                                     <div style={{ fontSize: '32px', marginBottom: '12px', opacity: 0.5 }}>📭</div>
                                     <p style={{ margin: 0 }}>No companies matched your search.</p>
                                 </td>

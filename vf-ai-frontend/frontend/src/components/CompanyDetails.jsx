@@ -295,7 +295,7 @@ function CompanyDetails() {
                                             }}>
                                                 <div style={{ marginBottom: '16px', textAlign: 'center' }}>
                                                     <span style={{ display: 'block', fontSize: '14px', fontWeight: '600', color: '#1E293B', marginBottom: '4px' }}>Scan for Branch</span>
-                                                    <span style={{ display: 'block', fontSize: '12px', color: '#64748B' }}>Device Registration</span>
+                                                    {/* <span style={{ display: 'block', fontSize: '12px', color: '#64748B' }}>Device Registration</span> */}
                                                 </div>
                                                 <div style={{
                                                     padding: '12px',
@@ -306,7 +306,7 @@ function CompanyDetails() {
                                                 }}>
                                                     <QRCodeSVG value={qrPayload} size={130} level="M" />
                                                 </div>
-                                                <div style={{
+                                                {/* <div style={{
                                                     marginTop: '16px',
                                                     background: '#EEF2FF',
                                                     padding: '8px 12px',
@@ -318,7 +318,7 @@ function CompanyDetails() {
                                                     <span style={{ display: 'block', fontSize: '11px', color: '#312E81', fontFamily: 'monospace', wordBreak: 'break-all', lineHeight: '1.4' }}>
                                                         {qrPayload}
                                                     </span>
-                                                </div>
+                                                </div> */}
                                             </div>
                                         </div>
                                     </div>

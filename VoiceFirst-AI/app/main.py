@@ -1,7 +1,8 @@
 
-from fastapi import FastAPI, HTTPException, Depends, status
+from fastapi import FastAPI, HTTPException, Depends, status, Query
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.staticfiles import StaticFiles
+from itsdangerous import URLSafeSerializer, BadSignature
 import os
 import json
 from pydantic import BaseModel
@@ -30,6 +31,11 @@ class TicketRequest(BaseModel):
     section_id : str
     issue_type_id : str
     message : str
+
+# We can use the same secret key from auth_service, or define a new one specifically for QR tokens.
+# Using a fixed secret for this example. In production, this should come from env variables.
+QR_SECRET_KEY = os.environ.get("QR_SECRET_KEY", "your-very-secret-qr-key-here-123")
+qr_serializer = URLSafeSerializer(QR_SECRET_KEY)
 
 class UserCreate(BaseModel):
     email: str
@@ -226,6 +232,37 @@ def get_issue_types(section_code: Optional[str] = None):
         query["section_code"] = section_code
     issue_types = list(issue_types_collection.find(query, {"_id": 0}))
     return issue_types
+
+class QRTokenRequest(BaseModel):
+    company_id: str
+    branch_id: str
+
+@app.post("/api/generate-qr-token")
+def generate_qr_token(
+    request: QRTokenRequest,
+    current_user: dict = Depends(get_current_active_user)
+):
+    user_role = current_user.get("role")
+    if user_role not in ["SuperAdmin", "CompanyAdmin"]:
+        raise HTTPException(status_code=403, detail="Not authorized to generate QR tokens")
+        
+    payload = {
+        "company_id": request.company_id,
+        "branch_id": request.branch_id
+    }
+    token = qr_serializer.dumps(payload)
+    return {"token": token}
+
+@app.get("/api/validate-qr-token")
+def validate_qr_token(token: str = Query(..., description="The secure QR token")):
+    try:
+        payload = qr_serializer.loads(token)
+        return {
+            "company_id": payload.get("company_id"),
+            "branch_id": payload.get("branch_id")
+        }
+    except BadSignature:
+        raise HTTPException(status_code=400, detail="Invalid token")
 
 @app.get("/api/analytics")
 def get_analytics(

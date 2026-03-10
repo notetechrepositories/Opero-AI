@@ -10,6 +10,7 @@ function CompanyDetails() {
     const [companyName, setCompanyName] = useState("");
     const [industry, setIndustry] = useState("");
     const [branches, setBranches] = useState([]);
+    const [branchTokens, setBranchTokens] = useState({});
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [expandedBranch, setExpandedBranch] = useState(null);
@@ -28,7 +29,30 @@ function CompanyDetails() {
                 }
 
                 const branchRes = await axios.get(`/api/branches?company_code=${companyId}`);
-                setBranches(branchRes.data);
+                const fetchedBranches = branchRes.data;
+                setBranches(fetchedBranches);
+
+                // Fetch tokens for all branches securely
+                const tokenPromises = fetchedBranches.map(async (branch) => {
+                    try {
+                        const tokenRes = await axios.post('/api/generate-qr-token', {
+                            company_id: companyId,
+                            branch_id: branch.branch_code
+                        });
+                        return { branchCode: branch.branch_code, token: tokenRes.data.token };
+                    } catch (err) {
+                        console.error(`Failed to fetch token for branch ${branch.branch_code}:`, err);
+                        return { branchCode: branch.branch_code, token: null };
+                    }
+                });
+
+                const tokens = await Promise.all(tokenPromises);
+                const tokenMap = {};
+                tokens.forEach(t => {
+                    if (t.token) tokenMap[t.branchCode] = t.token;
+                });
+                setBranchTokens(tokenMap);
+
             } catch (err) {
                 console.error("Failed to fetch company details:", err);
                 setError("Failed to load company details or branches. Please try again.");
@@ -155,7 +179,8 @@ function CompanyDetails() {
                         {branches.map((branch, index) => {
                             const isExpanded = expandedBranch === index;
                             const baseUrl = window.location.origin;
-                            const qrPayload = `${baseUrl}/raise-ticket?company_id=${companyId}&branch_id=${branch.branch_code}`;
+                            const secureToken = branchTokens[branch.branch_code];
+                            const qrPayload = secureToken ? `${baseUrl}/raise-ticket?token=${secureToken}` : `${baseUrl}/raise-ticket?error=token_missing`;
 
                             return (
                                 <div key={index} style={{

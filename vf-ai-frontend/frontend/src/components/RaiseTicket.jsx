@@ -8,8 +8,8 @@ function RaiseTicket() {
     const initialBranchId = searchParams.get("branch_id") || "";
 
     const [formData, setFormData] = useState({
-        company_id: initialCompanyId,
-        branch_id: initialBranchId,
+        company_id: "",
+        branch_id: "",
         section_id: "",
         issue_type_id: "",
         message: ""
@@ -32,6 +32,24 @@ function RaiseTicket() {
                 setLoadingDropdowns(true);
                 const compRes = await axios.get("/api/companies");
                 setCompanies(compRes.data);
+
+                // Handle token resolution
+                const token = searchParams.get("token");
+                if (token) {
+                    try {
+                        const tokenRes = await axios.get(`/api/validate-qr-token?token=${token}`);
+                        if (tokenRes.data.company_id && tokenRes.data.branch_id) {
+                            setFormData(prev => ({
+                                ...prev,
+                                company_id: tokenRes.data.company_id,
+                                branch_id: tokenRes.data.branch_id
+                            }));
+                        }
+                    } catch (tokenErr) {
+                        console.error("Failed to validate QR token:", tokenErr);
+                    }
+                }
+
             } catch (err) {
                 console.error("Failed to load initial dropdowns", err);
                 setCompanies([{ company_code: '1', company_name: 'Company 1' }, { company_code: '2', company_name: 'Company 2' }]);

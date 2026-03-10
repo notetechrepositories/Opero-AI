@@ -30,6 +30,8 @@ function CompanyDetails() {
 
                 const branchRes = await axios.get(`/api/branches?company_code=${companyId}`);
                 const fetchedBranches = branchRes.data;
+                console.log(fetchedBranches);
+
                 setBranches(fetchedBranches);
 
                 // Fetch tokens for all branches securely
@@ -226,6 +228,8 @@ function CompanyDetails() {
                                                     {branch.branch_name}
                                                 </h4>
                                                 <span style={{ fontSize: '13px', color: '#64748B', fontWeight: '500' }}>
+                                                    {branch.name}
+                                                    <br />
                                                     Code: {branch.branch_code}
                                                 </span>
                                             </div>
@@ -268,17 +272,17 @@ function CompanyDetails() {
                                                         <span style={{ color: '#4F46E5' }}>●</span> Branch Location
                                                     </span>
                                                     <p style={{ margin: 0, color: '#0F172A', fontSize: '15px', lineHeight: '1.5', backgroundColor: '#F8FAFC', padding: '12px', borderRadius: '8px', border: '1px solid #E2E8F0' }}>
-                                                        {branch.address || <span style={{ color: '#94A3B8', fontStyle: 'italic' }}>No address provided</span>}
+                                                        {branch.location || <span style={{ color: '#94A3B8', fontStyle: 'italic' }}>No location provided</span>}
                                                     </p>
                                                 </div>
-                                                <div>
+                                                {/* <div>
                                                     <span style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#64748B', marginBottom: '6px', textTransform: 'uppercase', fontWeight: '700', letterSpacing: '0.05em' }}>
                                                         <span style={{ color: '#06B6D4' }}>●</span> Contact Number
                                                     </span>
                                                     <p style={{ margin: 0, color: '#0F172A', fontSize: '15px', fontWeight: '500' }}>
                                                         {branch.phone || <span style={{ color: '#94A3B8', fontStyle: 'italic' }}>N/A</span>}
                                                     </p>
-                                                </div>
+                                                </div> */}
                                             </div>
 
                                             {/* QR Code Card */}

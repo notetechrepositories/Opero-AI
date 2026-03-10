@@ -154,10 +154,8 @@ function CompanyDetails() {
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                         {branches.map((branch, index) => {
                             const isExpanded = expandedBranch === index;
-                            const qrPayload = JSON.stringify({
-                                company_id: companyId,
-                                branch_id: branch.branch_code
-                            });
+                            const baseUrl = window.location.origin;
+                            const qrPayload = `${baseUrl}/raise-ticket?company_id=${companyId}&branch_id=${branch.branch_code}`;
 
                             return (
                                 <div key={index} style={{

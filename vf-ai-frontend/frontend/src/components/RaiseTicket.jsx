@@ -1,10 +1,15 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
+import { useSearchParams } from "react-router-dom";
 
 function RaiseTicket() {
+    const [searchParams] = useSearchParams();
+    const initialCompanyId = searchParams.get("company_id") || "";
+    const initialBranchId = searchParams.get("branch_id") || "";
+
     const [formData, setFormData] = useState({
-        company_id: "",
-        branch_id: "",
+        company_id: initialCompanyId,
+        branch_id: initialBranchId,
         section_id: "",
         issue_type_id: "",
         message: ""

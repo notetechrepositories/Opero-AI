@@ -21,6 +21,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from typing import Optional, List, Dict, Any
 from fastapi import Request
 from app.services.whatsapp_service import send_whatsapp_message
+import secrets
+import hashlib
+from urllib.parse import urlencode
 
 
 
@@ -95,6 +98,87 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
     )
     return {"access_token": access_token, "token_type": "bearer", "user": {"email": user["email"], "role": user.get("role"), "company_id": user.get("company_id"), "branch_id": user.get("branch_id")}}
 
+
+class PasswordResetRequest(BaseModel):
+    email: str
+
+
+class PasswordResetConfirm(BaseModel):
+    token: str
+    new_password: str
+
+
+@app.post("/api/auth/request-password-reset")
+def request_password_reset(req: PasswordResetRequest):
+    """
+    Generates a one-time password reset token and emails a reset link.
+    Stores only a hash of the token in MongoDB, with an expiry.
+    """
+    from app.db.database import users_collection
+    from app.services.email_service import send_password_reset_email
+
+    email = (req.email or "").strip().lower()
+    if not email or "@" not in email:
+        raise HTTPException(status_code=400, detail="Please enter a valid email address.")
+
+    user = users_collection.find_one({"email": email})
+    if not user:
+        raise HTTPException(status_code=404, detail="No account found for this email.")
+
+    raw_token = secrets.token_urlsafe(32)
+    token_hash = hashlib.sha256(raw_token.encode("utf-8")).hexdigest()
+    expires_at = datetime.utcnow() + timedelta(minutes=30)
+
+    users_collection.update_one(
+        {"_id": user["_id"]},
+        {"$set": {"password_reset": {"token_hash": token_hash, "expires_at": expires_at, "used": False}}},
+    )
+
+    frontend_base_url = os.getenv("FRONTEND_BASE_URL", "http://localhost:3000").rstrip("/")
+    query = urlencode({"token": raw_token})
+    reset_link = f"{frontend_base_url}/reset-password?{query}"
+
+    try:
+        send_password_reset_email(email, reset_link)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to send reset email: {str(e)}")
+
+    return {"status": "success", "message": "Password reset link sent to your email."}
+
+
+@app.post("/api/auth/reset-password")
+def reset_password(req: PasswordResetConfirm):
+    from app.db.database import users_collection
+    from app.services.auth_service import get_password_hash
+
+    token = (req.token or "").strip()
+    new_password = (req.new_password or "").strip()
+
+    if len(new_password) < 8:
+        raise HTTPException(status_code=400, detail="Password must be at least 8 characters.")
+    if not token:
+        raise HTTPException(status_code=400, detail="Missing reset token.")
+
+    token_hash = hashlib.sha256(token.encode("utf-8")).hexdigest()
+    user = users_collection.find_one({"password_reset.token_hash": token_hash})
+    if not user:
+        raise HTTPException(status_code=400, detail="Invalid or expired reset token.")
+
+    pr = user.get("password_reset") or {}
+    if pr.get("used") is True:
+        raise HTTPException(status_code=400, detail="This reset link has already been used.")
+    expires_at = pr.get("expires_at")
+    if not expires_at or expires_at < datetime.utcnow():
+        raise HTTPException(status_code=400, detail="Invalid or expired reset token.")
+
+    hashed_pw = get_password_hash(new_password)
+    users_collection.update_one(
+        {"_id": user["_id"]},
+        {"$set": {"hashed_password": hashed_pw, "password_reset.used": True}},
+    )
+
+    return {"status": "success", "message": "Password updated successfully."}
+
 @app.get("/api/users", response_model=List[UserResponse])
 def get_users(current_user: dict = Depends(get_current_active_user)):
     from app.db.database import users_collection
@@ -160,6 +244,67 @@ def create_user(user_req: UserCreate, current_user: dict = Depends(get_current_a
         company_id=user_req.company_id,
         branch_id=user_req.branch_id
     )
+
+class PasswordChangeRequest(BaseModel):
+    new_password: str
+
+@app.delete("/api/users/{user_id}")
+def delete_user(user_id: str, current_user: dict = Depends(get_current_active_user)):
+    from app.db.database import users_collection
+    from bson.objectid import ObjectId
+    from bson.errors import InvalidId
+    
+    current_role = current_user.get("role")
+    if current_role == "Staff":
+        raise HTTPException(status_code=403, detail="Staff cannot delete users")
+        
+    try:
+        obj_id = ObjectId(user_id)
+    except InvalidId:
+        raise HTTPException(status_code=400, detail="Invalid user ID")
+        
+    target_user = users_collection.find_one({"_id": obj_id})
+    if not target_user:
+        raise HTTPException(status_code=404, detail="User not found")
+        
+    if current_role == "CompanyAdmin":
+        if target_user.get("role") != "Staff":
+            raise HTTPException(status_code=403, detail="CompanyAdmins can only delete Staff users")
+        if target_user.get("company_id") != current_user.get("company_id"):
+            raise HTTPException(status_code=403, detail="CompanyAdmins can only delete users in their own company")
+            
+    users_collection.delete_one({"_id": obj_id})
+    return {"status": "success", "message": "User deleted successfully"}
+
+@app.put("/api/users/{user_id}/password")
+def change_password(user_id: str, req: PasswordChangeRequest, current_user: dict = Depends(get_current_active_user)):
+    from app.db.database import users_collection
+    from app.services.auth_service import get_password_hash
+    from bson.objectid import ObjectId
+    from bson.errors import InvalidId
+    
+    current_role = current_user.get("role")
+    if current_role == "Staff":
+        raise HTTPException(status_code=403, detail="Staff cannot change passwords")
+        
+    try:
+        obj_id = ObjectId(user_id)
+    except InvalidId:
+        raise HTTPException(status_code=400, detail="Invalid user ID")
+        
+    target_user = users_collection.find_one({"_id": obj_id})
+    if not target_user:
+        raise HTTPException(status_code=404, detail="User not found")
+        
+    if current_role == "CompanyAdmin":
+        if target_user.get("role") != "Staff":
+            raise HTTPException(status_code=403, detail="CompanyAdmins can only change passwords for Staff users")
+        if target_user.get("company_id") != current_user.get("company_id"):
+            raise HTTPException(status_code=403, detail="CompanyAdmins can only change passwords for users in their own company")
+            
+    hashed_pw = get_password_hash(req.new_password)
+    users_collection.update_one({"_id": obj_id}, {"$set": {"hashed_password": hashed_pw}})
+    return {"status": "success", "message": "Password updated successfully"}
 
 @app.get("/api/tickets")
 def get_tickets(
@@ -468,6 +613,11 @@ def verify_whatsapp_webhook(request: Request):
 @app.post("/api/whatsapp/webhook")
 async def handle_whatsapp_webhook(request: Request):
     body = await request.json()
+    
+    print("====== INCOMING LAMBDA WEBHOOK ======")
+    import json
+    print(json.dumps(body, indent=2))
+    print("=====================================")
     
     if "object" in body and body["object"] == "whatsapp_business_account":
         for entry in body.get("entry", []):

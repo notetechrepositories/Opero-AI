@@ -82,6 +82,29 @@ function UserManagement() {
         }
     };
 
+    const handleDeleteUser = async (userId, email) => {
+        if (!window.confirm(`Are you sure you want to delete user ${email}?`)) return;
+        try {
+            await axios.delete(`/api/users/${userId}`);
+            fetchUsers();
+        } catch (err) {
+            console.error(err);
+            alert(err.response?.data?.detail || "Failed to delete user.");
+        }
+    };
+
+    const handleChangePassword = async (userId, email) => {
+        const newPassword = window.prompt(`Enter new password for ${email}:`);
+        if (!newPassword) return;
+        try {
+            await axios.put(`/api/users/${userId}/password`, { new_password: newPassword });
+            alert("Password updated successfully.");
+        } catch (err) {
+            console.error(err);
+            alert(err.response?.data?.detail || "Failed to update password.");
+        }
+    };
+
     return (
         <div className="app-container dashboard-page">
             <h2 className="title">User Management</h2>
@@ -174,6 +197,7 @@ function UserManagement() {
                                         <th>Role</th>
                                         <th>Company</th>
                                         <th>Branch</th>
+                                        <th>Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -184,10 +208,18 @@ function UserManagement() {
                                                 <td><span className={`badge priority-badge ${u.role === 'SuperAdmin' ? 'high' : u.role === 'CompanyAdmin' ? 'medium' : 'low'}`}>{u.role}</span></td>
                                                 <td><span style={{ color: "var(--text-muted)" }}>{u.company_id || "-"}</span></td>
                                                 <td><span style={{ color: "var(--text-muted)" }}>{u.branch_id || "-"}</span></td>
+                                                <td>
+                                                    {(user?.role === "SuperAdmin" || (user?.role === "CompanyAdmin" && u.role === "Staff")) && (
+                                                        <div style={{ display: 'flex', gap: '8px' }}>
+                                                            <button onClick={() => handleChangePassword(u.id, u.email)} className="btn-secondary" style={{ padding: '4px 8px', fontSize: '12px' }}>Reset PW</button>
+                                                            <button onClick={() => handleDeleteUser(u.id, u.email)} className="btn-secondary" style={{ padding: '4px 8px', fontSize: '12px', border: '1px solid var(--error)', color: 'var(--error)' }}>Delete</button>
+                                                        </div>
+                                                    )}
+                                                </td>
                                             </tr>
                                         ))
                                     ) : (
-                                        <tr><td colSpan="4" style={{ textAlign: 'center', padding: '24px', color: 'var(--text-muted)' }}>No users found.</td></tr>
+                                        <tr><td colSpan="5" style={{ textAlign: 'center', padding: '24px', color: 'var(--text-muted)' }}>No users found.</td></tr>
                                     )}
                                 </tbody>
                             </table>

@@ -135,6 +135,10 @@ def request_password_reset(req: PasswordResetRequest):
     try:
         send_password_reset_email(email, reset_link)
     except Exception as e:
+        # If SMTP is not configured, allow local/dev testing without blocking the UI.
+        email_mode = os.getenv("EMAIL_MODE", "").strip().lower() or "smtp"
+        if email_mode in ("console", "log", "stdout"):
+            return {"status": "success", "message": "Password reset link generated (check server logs)."}
         raise HTTPException(status_code=500, detail=f"Failed to send reset email: {str(e)}")
 
     return {"status": "success", "message": "Password reset link sent to your email."}

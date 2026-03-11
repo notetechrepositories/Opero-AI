@@ -3,7 +3,11 @@ import axios from "axios";
 import { useSearchParams } from "react-router-dom";
 
 function RaiseTicket() {
+    // Hook to read query strings from the URL
+    // e.g. /raise-ticket?company_id=123 or /raise-ticket?token=xyz
     const [searchParams] = useSearchParams();
+
+    // Fallback logic for unencrypted navigation scenarios
     const initialCompanyId = searchParams.get("company_id") || "";
     const initialBranchId = searchParams.get("branch_id") || "";
 
@@ -33,12 +37,19 @@ function RaiseTicket() {
                 const compRes = await axios.get("/api/companies");
                 setCompanies(compRes.data);
 
-                // Handle token resolution
+                // ==========================================
+                // SECURE TOKEN RESOLUTION:
+                // Extract the secure token from the QR Code URL
+                // ==========================================
                 const token = searchParams.get("token");
                 if (token) {
                     try {
+                        // Pass the token to the backend. The backend will decrypt the token
+                        // and return the raw company_id and branch_id it was signed with
                         const tokenRes = await axios.get(`/api/validate-qr-token?token=${token}`);
                         if (tokenRes.data.company_id && tokenRes.data.branch_id) {
+                            // Automatically update the form to pre-select the dropdowns
+                            // which automatically triggers the cascading cascade effects in other useEffect hooks
                             setFormData(prev => ({
                                 ...prev,
                                 company_id: tokenRes.data.company_id,

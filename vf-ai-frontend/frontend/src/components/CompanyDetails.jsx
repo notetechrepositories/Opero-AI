@@ -34,9 +34,14 @@ function CompanyDetails() {
 
                 setBranches(fetchedBranches);
 
-                // Fetch tokens for all branches securely
+                // ==========================================
+                // SECURE QR TOKEN FETCHING:
+                // Instead of putting raw IDs in the URL, we ask the backend
+                // to generate a signed token for EVERY branch retrieved.
+                // ==========================================
                 const tokenPromises = fetchedBranches.map(async (branch) => {
                     try {
+                        // Request a secure token for this specific branch
                         const tokenRes = await axios.post('/api/generate-qr-token', {
                             company_id: companyId,
                             branch_id: branch.branch_code
@@ -48,11 +53,16 @@ function CompanyDetails() {
                     }
                 });
 
+                // Wait for all token requests to finish concurrently
                 const tokens = await Promise.all(tokenPromises);
+
+                // Map the tokens back to their respective branch codes locally
                 const tokenMap = {};
                 tokens.forEach(t => {
                     if (t.token) tokenMap[t.branchCode] = t.token;
                 });
+
+                // Store the parsed tokens in React state for rendering
                 setBranchTokens(tokenMap);
 
             } catch (err) {

@@ -14,6 +14,7 @@ function CompanyList() {
 
     const navigate = useNavigate();
 
+    // Fetch the raw list of all companies on mount
     useEffect(() => {
         const fetchCompanies = async () => {
             try {
@@ -38,6 +39,7 @@ function CompanyList() {
     }, [searchTerm]);
 
     // Derived state for filtering and pagination
+    // Creates a new array displaying only the companies that match the search bar's text query
     const filteredCompanies = companies.filter(company =>
         (company.name || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
         (company.company_code || "").toLowerCase().includes(searchTerm.toLowerCase())

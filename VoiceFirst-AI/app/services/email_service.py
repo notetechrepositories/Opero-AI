@@ -6,8 +6,14 @@ from email.message import EmailMessage
 def send_password_reset_email(to_email: str, reset_link: str) -> None:
     """
     Sends a password reset link to the user.
-    Requires SMTP_* environment variables.
+    - Production: configure SMTP_* environment variables.
+    - Development: set EMAIL_MODE=console to log the reset link instead of emailing.
     """
+    email_mode = os.getenv("EMAIL_MODE", "").strip().lower() or "smtp"
+    if email_mode in ("console", "log", "stdout"):
+        print(f"[password-reset] to={to_email} link={reset_link}")
+        return
+
     smtp_host = os.getenv("SMTP_HOST", "")
     smtp_port = int(os.getenv("SMTP_PORT", "587"))
     smtp_user = os.getenv("SMTP_USER", "")
@@ -16,7 +22,10 @@ def send_password_reset_email(to_email: str, reset_link: str) -> None:
     smtp_use_tls = os.getenv("SMTP_USE_TLS", "true").lower() in ("1", "true", "yes")
 
     if not smtp_host or not smtp_from:
-        raise RuntimeError("SMTP is not configured (missing SMTP_HOST/SMTP_FROM).")
+        raise RuntimeError(
+            "SMTP is not configured (missing SMTP_HOST/SMTP_FROM). "
+            "For local testing, set EMAIL_MODE=console."
+        )
 
     msg = EmailMessage()
     msg["Subject"] = "Reset your VF AI Desk password"

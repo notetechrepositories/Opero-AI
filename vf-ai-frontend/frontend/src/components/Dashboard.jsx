@@ -138,7 +138,7 @@ function Dashboard() {
                                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                                     ))}
                                 </Pie>
-                                <Tooltip contentStyle={{ backgroundColor: '#e3e7ecff', border: '1px solid #334155', borderRadius: '8px' }} />
+                                <Tooltip contentStyle={{ backgroundColor: '#cad0d6ff', border: '1px solid #334155', borderRadius: '8px' }} />
                                 <Legend iconType="circle" wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }} />
                             </PieChart>
                         </ResponsiveContainer>

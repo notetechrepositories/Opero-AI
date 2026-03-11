@@ -4,6 +4,8 @@ import Dashboard from "./components/Dashboard";
 import RaiseTicket from "./components/RaiseTicket";
 import TicketList from "./components/TicketList";
 import Login from "./components/Login";
+import ForgotPassword from "./components/ForgotPassword";
+import ResetPassword from "./components/ResetPassword";
 import ProtectedRoute from "./components/ProtectedRoute";
 import UserManagement from "./components/UserManagement";
 import { useAuth } from "./context/AuthContext";
@@ -44,6 +46,11 @@ const Layout = ({ children }) => {
           <div className="nav-item">
             ⚙️ Settings
           </div>
+          {user && (
+            <div className="nav-item" onClick={logout} style={{ cursor: 'pointer', color: '#EF4444', marginTop: 'auto' }}>
+              🚪 Logout
+            </div>
+          )}
         </div>
 
         <div className="sidebar-footer">
@@ -54,7 +61,6 @@ const Layout = ({ children }) => {
                 <span className="user-name">{user.email}</span>
                 <span className="user-role">{user.role}</span>
               </div>
-              <button onClick={logout} style={{ marginLeft: 'auto', background: 'none', border: 'none', color: '#EF4444', cursor: 'pointer', fontSize: '13px', fontWeight: '600' }}>Logout</button>
             </div>
           ) : (
             <div className="user-profile" style={{ justifyContent: 'center', width: '100%' }}>
@@ -86,6 +92,8 @@ function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={<Login />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/" element={<Layout><ProtectedRoute allowedRoles={["SuperAdmin", "CompanyAdmin"]}><Dashboard /></ProtectedRoute></Layout>} />
         <Route path="/raise-ticket" element={<Layout><RaiseTicket /></Layout>} />
         <Route path="/tickets" element={<Layout><ProtectedRoute><TicketList /></ProtectedRoute></Layout>} />

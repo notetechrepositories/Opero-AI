@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import axios from "axios";
+import { Link } from "react-router-dom";
 
 const Login = () => {
     const [email, setEmail] = useState("");
@@ -85,8 +86,13 @@ const Login = () => {
                     </button>
                 </form>
 
-                <div style={{ textAlign: 'center', marginTop: '32px', fontSize: '14px' }}>
-                    <a href="/raise-ticket" style={{ color: 'var(--primary)', textDecoration: 'none', fontWeight: '500' }}>→ Go back to Raise Ticket</a>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '16px', fontSize: '14px' }}>
+                    <Link to="/forgot-password" style={{ color: 'var(--primary)', textDecoration: 'none', fontWeight: '500' }}>
+                        Forgot password?
+                    </Link>
+                    <Link to="/raise-ticket" style={{ color: 'var(--primary)', textDecoration: 'none', fontWeight: '500' }}>
+                        Back to Raise Ticket →
+                    </Link>
                 </div>
             </div>
 

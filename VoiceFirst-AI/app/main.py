@@ -84,14 +84,30 @@ ALLOWED_PRIORITIES = ["High", "Medium", "Low"]
 @app.post("/api/auth/login")
 async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
     from app.db.database import users_collection
+    # Trim whitespace from the email just in case the frontend sends a trailing space
+    username = form_data.username.strip().lower() if form_data.username else form_data.username
+    print(f"Login attempt for email: '{username}' with password length: {len(form_data.password)}")
+    
     # OAuth2PasswordRequestForm strictly uses "username" as the field name, but we will pass an email into it from the frontend
-    user = users_collection.find_one({"email": form_data.username})
-    if not user or not verify_password(form_data.password, user["hashed_password"]):
+    user = users_collection.find_one({"email": username})
+    
+    if not user:
+        print(f"User not found for email: '{username}'")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
+        
+    if not verify_password(form_data.password, user["hashed_password"]):
+        print(f"Password mismatch for user: '{username}'")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect email or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+        
+    print(f"Login successful for user: '{username}'")
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
         data={"sub": user["email"], "role": user.get("role"), "company_id": user.get("company_id")}, expires_delta=access_token_expires

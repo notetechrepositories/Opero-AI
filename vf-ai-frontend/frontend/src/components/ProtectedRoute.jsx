@@ -6,7 +6,7 @@ const ProtectedRoute = ({ allowedRoles, children }) => {
     const { user, token, loading } = useAuth();
 
     if (loading) {
-        return <div className="app-container"><div className="spinner" style={{ borderColor: '#3b82f6', borderTopColor: 'transparent', margin: 'auto' }}></div></div>;
+        return <div className="app-container"><div className="spinner" style={{ borderColor: 'var(--color-brand)', borderTopColor: 'transparent', margin: 'auto' }}></div></div>;
     }
 
     if (!token || !user) {
@@ -20,7 +20,7 @@ const ProtectedRoute = ({ allowedRoles, children }) => {
             <div className="app-container">
                 <h2 style={{ color: 'var(--error)' }}>Access Denied</h2>
                 <p>Your role ({user.role}) does not have permission to view this page.</p>
-                <a href="/tickets" style={{ color: 'var(--primary)', textDecoration: 'none' }}>Go to Ticket List</a>
+                <a href="/tickets" style={{ color: 'var(--color-brand)', textDecoration: 'none' }}>Go to Ticket List</a>
             </div>
         );
     }

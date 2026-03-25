@@ -1,12 +1,21 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
+import { Building2, AlertCircle, FileSearch, Plus, X } from "lucide-react";
+import { useAuth } from "../context/AuthContext";
 
 function CompanyList() {
+    const { user } = useAuth();
     const [companies, setCompanies] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [searchTerm, setSearchTerm] = useState("");
+
+    // Create company state
+    const [showCreateModal, setShowCreateModal] = useState(false);
+    const [formData, setFormData] = useState({ name: "", industry: "" });
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [submitError, setSubmitError] = useState("");
 
     // Pagination state
     const [currentPage, setCurrentPage] = useState(1);
@@ -14,22 +23,37 @@ function CompanyList() {
 
     const navigate = useNavigate();
 
+    const fetchCompanies = async () => {
+        setLoading(true);
+        try {
+            const res = await axios.get("/api/companies");
+            setCompanies(res.data);
+        } catch (err) {
+            console.error("Failed to fetch companies:", err);
+            setError("Failed to load companies. Please try again.");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleCreateCompany = async (e) => {
+        e.preventDefault();
+        setIsSubmitting(true);
+        setSubmitError("");
+        try {
+            await axios.post("/api/companies", formData);
+            setShowCreateModal(false);
+            setFormData({ name: "", industry: "" });
+            fetchCompanies(); // Refresh list
+        } catch (err) {
+            setSubmitError(err.response?.data?.detail || "Failed to create company");
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
     // Fetch the raw list of all companies on mount
     useEffect(() => {
-        const fetchCompanies = async () => {
-            try {
-                const res = await axios.get("/api/companies");
-                console.log(res.data);
-
-                setCompanies(res.data);
-            } catch (err) {
-                console.error("Failed to fetch companies:", err);
-                setError("Failed to load companies. Please try again.");
-            } finally {
-                setLoading(false);
-            }
-        };
-
         fetchCompanies();
     }, []);
 
@@ -53,53 +77,90 @@ function CompanyList() {
     const paginate = (pageNumber) => setCurrentPage(pageNumber);
 
     if (loading) return (
-        <div className="app-container" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '300px' }}>
-            <div className="spinner" style={{ borderColor: '#3b82f6', borderTopColor: 'transparent', margin: 'auto' }}></div>
+        <div className="app-container dashboard-page ticket-list-page" style={{ maxWidth: '1000px' }}>
+            <div className="page-header">
+                <div className="page-header-content">
+                    <h1 className="page-title">Companies</h1>
+                    <p className="page-subtitle">Manage corporate clients and view branch analytics.</p>
+                </div>
+            </div>
+
+            <div className="table-container" style={{ backgroundColor: 'white', borderRadius: '12px' }}>
+                <table className="ticket-table" style={{ width: '100%' }}>
+                    <thead>
+                        <tr style={{ backgroundColor: '#F8FAFC' }}>
+                            <th style={{ padding: '16px 24px' }}>Company</th>
+                            <th style={{ padding: '16px 24px' }}>Industry</th>
+                            <th style={{ padding: '16px 24px' }}>Code</th>
+                            <th style={{ padding: '16px 24px', textAlign: 'right' }}>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {[1, 2, 3, 4, 5, 6].map(i => (
+                            <tr key={i}>
+                                <td style={{ padding: '16px 24px' }}>
+                                    <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                                        <div className="skeleton skeleton-box" style={{ width: '36px', height: '36px', borderRadius: 'var(--radius-sm)' }}></div>
+                                        <div className="skeleton skeleton-text" style={{ width: '120px', margin: 0 }}></div>
+                                    </div>
+                                </td>
+                                <td style={{ padding: '16px 24px' }}><div className="skeleton skeleton-text" style={{ width: '80px', margin: 0 }}></div></td>
+                                <td style={{ padding: '16px 24px' }}><div className="skeleton skeleton-text" style={{ width: '60px', margin: 0 }}></div></td>
+                                <td style={{ padding: '16px 24px', display: 'flex', justifyContent: 'flex-end' }}>
+                                    <div className="skeleton skeleton-box" style={{ width: '90px', height: '30px', margin: 0 }}></div>
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
         </div>
     );
 
     if (error) return (
-        <div className="app-container" style={{ color: 'red', textAlign: 'center', padding: '40px' }}>
-            <span style={{ fontSize: '40px', display: 'block', marginBottom: '16px' }}>⚠️</span>
-            {error}
+        <div className="app-container dashboard-page ticket-list-page" style={{ maxWidth: '1000px', backgroundColor: 'transparent', border: 'none', boxShadow: 'none', padding: 0 }}>
+            <div className="state-container error">
+                <AlertCircle className="state-icon" size={48} strokeWidth={1.5} />
+                <div className="state-title">Unable to Load Companies</div>
+                <div className="state-description">{error}</div>
+            </div>
         </div>
     );
 
     return (
-        <div className="app-container dashboard-page ticket-list-page" style={{ maxWidth: '1000px', backgroundColor: 'transparent', border: 'none', boxShadow: 'none', padding: 0 }}>
-            {/* Header Section */}
-            <div style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'flex-end',
-                marginBottom: '24px',
-                flexWrap: 'wrap',
-                gap: '16px'
-            }}>
-                <div>
-                    <h2 className="title" style={{ margin: 0, fontSize: '28px', background: 'linear-gradient(135deg, #1E293B, #475569)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-                        Companies
-                    </h2>
-                    <p className="subtitle" style={{ margin: '8px 0 0 0', fontSize: '15px' }}>
-                        Manage corporate clients and view branch analytics.
-                    </p>
+        <div className="app-container dashboard-page ticket-list-page" style={{ maxWidth: '1000px' }}>
+            <div className="page-header">
+                <div className="page-header-content">
+                    <h1 className="page-title">Companies</h1>
+                    <p className="page-subtitle">Manage corporate clients and view branch analytics.</p>
                 </div>
 
-                <div style={{ position: 'relative', width: '100%', maxWidth: '300px' }}>
-                    <span style={{ position: 'absolute', left: '14px', top: '12px', color: '#94A3B8' }}>🔍</span>
-                    <input
-                        type="text"
-                        placeholder="Search companies..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="form-control"
-                        style={{ paddingLeft: '40px', borderRadius: '12px', boxShadow: '0 2px 4px rgba(0,0,0,0.02)', border: '1px solid #E2E8F0' }}
-                    />
+                <div className="page-header-actions" style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                    <div style={{ position: 'relative', width: '280px' }}>
+                        <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-subtlest)', zIndex: 1, fontSize: '14px' }}>🔍</span>
+                        <input
+                            type="text"
+                            placeholder="Search companies..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="form-control"
+                            style={{ paddingLeft: '36px', height: '36px', fontSize: '13px' }}
+                        />
+                    </div>
+                    {user?.role === "SuperAdmin" && (
+                        <button
+                            className="btn-primary"
+                            style={{ display: 'flex', alignItems: 'center', gap: '8px', height: '36px', padding: '0 16px', fontSize: '13px' }}
+                            onClick={() => setShowCreateModal(true)}
+                        >
+                            <Plus size={16} /> New Company
+                        </button>
+                    )}
                 </div>
             </div>
 
             {/* Table Section */}
-            <div className="table-container" style={{ backgroundColor: 'white', borderRadius: '12px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)', overflow: 'hidden' }}>
+            <div className="card" style={{ padding: '0', overflow: 'hidden' }}>
                 <table className="ticket-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
                     <thead>
                         <tr style={{ backgroundColor: '#F8FAFC', borderBottom: '1px solid #E2E8F0' }}>
@@ -128,12 +189,12 @@ function CompanyList() {
                                             <div style={{
                                                 width: '36px',
                                                 height: '36px',
-                                                borderRadius: '8px',
-                                                background: 'linear-gradient(135deg, #EEF2FF, #E0E7FF)',
+                                                borderRadius: 'var(--radius-sm)',
+                                                background: 'var(--color-bg-sunken)',
                                                 display: 'flex',
                                                 justifyContent: 'center',
                                                 alignItems: 'center',
-                                                color: '#4F46E5',
+                                                color: 'var(--color-text-subtle)',
                                                 fontWeight: '600',
                                                 fontSize: '14px',
                                             }}>
@@ -163,41 +224,18 @@ function CompanyList() {
                                         </span>
                                     </td>
                                     <td style={{ padding: '16px 24px', textAlign: 'right', verticalAlign: 'middle' }}>
-                                        <button
-                                            style={{
-                                                background: 'transparent',
-                                                border: '1px solid #E2E8F0',
-                                                padding: '6px 12px',
-                                                borderRadius: '6px',
-                                                color: '#4F46E5',
-                                                fontSize: '13px',
-                                                fontWeight: '500',
-                                                cursor: 'pointer',
-                                                transition: 'all 0.2s'
-                                            }}
-                                            onMouseEnter={(e) => {
-                                                e.currentTarget.style.backgroundColor = '#EEF2FF';
-                                                e.currentTarget.style.borderColor = '#C7D2FE';
-                                            }}
-                                            onMouseLeave={(e) => {
-                                                e.currentTarget.style.backgroundColor = 'transparent';
-                                                e.currentTarget.style.borderColor = '#E2E8F0';
-                                            }}
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                navigate(`/companies/${company.company_code}`);
-                                            }}
-                                        >
-                                            View Details
-                                        </button>
+                                        <button className="btn-tertiary btn-sm" onClick={() => window.location.href = `/companies/${company.company_code}`}>View Details</button>
                                     </td>
                                 </tr>
                             ))
                         ) : (
                             <tr>
-                                <td colSpan={4} style={{ padding: '40px', textAlign: 'center', color: '#64748B' }}>
-                                    <div style={{ fontSize: '32px', marginBottom: '12px', opacity: 0.5 }}>📭</div>
-                                    <p style={{ margin: 0 }}>No companies matched your search.</p>
+                                <td colSpan={4}>
+                                    <div className="state-container" style={{ margin: '24px', border: 'none' }}>
+                                        <FileSearch className="state-icon" size={48} strokeWidth={1.5} />
+                                        <div className="state-title">No Companies Found</div>
+                                        <div className="state-description">We couldn't find any companies matching '{searchTerm}'. Try adjusting your search query.</div>
+                                    </div>
                                 </td>
                             </tr>
                         )}
@@ -222,17 +260,7 @@ function CompanyList() {
                             <button
                                 onClick={() => paginate(currentPage - 1)}
                                 disabled={currentPage === 1}
-                                style={{
-                                    padding: '6px 14px',
-                                    border: '1px solid #E2E8F0',
-                                    backgroundColor: currentPage === 1 ? '#F1F5F9' : 'white',
-                                    color: currentPage === 1 ? '#94A3B8' : '#334155',
-                                    borderRadius: '6px',
-                                    fontSize: '13px',
-                                    fontWeight: '500',
-                                    cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
-                                    transition: 'all 0.2s'
-                                }}
+                                className="btn-pagination"
                             >
                                 Previous
                             </button>
@@ -241,21 +269,8 @@ function CompanyList() {
                                 <button
                                     key={index}
                                     onClick={() => paginate(index + 1)}
-                                    style={{
-                                        width: '32px',
-                                        height: '32px',
-                                        display: 'flex',
-                                        justifyContent: 'center',
-                                        alignItems: 'center',
-                                        border: currentPage === index + 1 ? '1px solid #4F46E5' : '1px solid #E2E8F0',
-                                        backgroundColor: currentPage === index + 1 ? '#EEF2FF' : 'white',
-                                        color: currentPage === index + 1 ? '#4F46E5' : '#334155',
-                                        borderRadius: '6px',
-                                        fontSize: '13px',
-                                        fontWeight: currentPage === index + 1 ? '600' : '500',
-                                        cursor: 'pointer',
-                                        transition: 'all 0.2s'
-                                    }}
+                                    className={`btn-pagination ${currentPage === index + 1 ? 'active' : ''}`}
+                                    style={{ width: '32px' }}
                                 >
                                     {index + 1}
                                 </button>
@@ -264,17 +279,7 @@ function CompanyList() {
                             <button
                                 onClick={() => paginate(currentPage + 1)}
                                 disabled={currentPage === totalPages}
-                                style={{
-                                    padding: '6px 14px',
-                                    border: '1px solid #E2E8F0',
-                                    backgroundColor: currentPage === totalPages ? '#F1F5F9' : 'white',
-                                    color: currentPage === totalPages ? '#94A3B8' : '#334155',
-                                    borderRadius: '6px',
-                                    fontSize: '13px',
-                                    fontWeight: '500',
-                                    cursor: currentPage === totalPages ? 'not-allowed' : 'pointer',
-                                    transition: 'all 0.2s'
-                                }}
+                                className="btn-pagination"
                             >
                                 Next
                             </button>
@@ -282,6 +287,57 @@ function CompanyList() {
                     </div>
                 )}
             </div>
+
+            {showCreateModal && (
+                <div style={{
+                    position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+                    backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1000,
+                    display: 'flex', justifyContent: 'center', alignItems: 'center'
+                }}>
+                    <div style={{
+                        background: 'white', borderRadius: '12px', width: '400px',
+                        padding: '24px', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)'
+                    }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                            <h2 style={{ margin: 0, fontSize: '18px', color: '#0F172A' }}>Create New Company</h2>
+                            <button onClick={() => setShowCreateModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748B' }}>
+                                <X size={20} />
+                            </button>
+                        </div>
+
+                        {submitError && (
+                            <div style={{ padding: '12px', backgroundColor: '#FEF2F2', color: '#B91C1C', borderRadius: '6px', marginBottom: '16px', fontSize: '14px' }}>
+                                {submitError}
+                            </div>
+                        )}
+
+                        <form onSubmit={handleCreateCompany} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                            <div>
+                                <label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', color: '#334155', fontWeight: '500' }}>Company Name</label>
+                                <input
+                                    type="text" required className="form-control"
+                                    value={formData.name}
+                                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                                />
+                            </div>
+                            <div>
+                                <label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', color: '#334155', fontWeight: '500' }}>Industry</label>
+                                <input
+                                    type="text" required className="form-control"
+                                    value={formData.industry}
+                                    onChange={(e) => setFormData({ ...formData, industry: e.target.value })}
+                                />
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '8px' }}>
+                                <button type="button" className="btn-secondary" onClick={() => setShowCreateModal(false)}>Cancel</button>
+                                <button type="submit" className="btn-primary" disabled={isSubmitting}>
+                                    {isSubmitting ? 'Creating...' : 'Create Company'}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

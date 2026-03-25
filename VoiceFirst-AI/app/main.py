@@ -28,6 +28,38 @@ import secrets
 import hashlib
 from urllib.parse import urlencode
 
+def generate_next_id(collection, field_name, prefix):
+    docs = list(collection.find({}, {field_name: 1, "_id": 0}))
+    max_num = 0
+    for doc in docs:
+        val = doc.get(field_name, "")
+        if val.startswith(prefix):
+            try:
+                num = int(val[len(prefix):])
+                if num > max_num:
+                    max_num = num
+            except ValueError:
+                pass
+    next_num = max_num + 1
+    return f"{prefix}{next_num:03d}"
+
+
+class TicketAnalyzeRequest(BaseModel):
+    company_id: str
+    branch_id: str
+    section_id: str
+    issue_type_id: str
+    message: str
+
+class TicketSubmitRequest(BaseModel):
+    company_id: str
+    branch_id: str
+    section_id: Optional[str] = ""
+    issue_type_id: Optional[str] = ""
+    message: str
+    category: Optional[str] = None
+    priority: Optional[str] = None
+    summary: Optional[str] = None
 
 
 
@@ -60,6 +92,22 @@ class UserResponse(BaseModel):
     company_id: Optional[str] = None
     branch_id: Optional[str] = None
 
+class CompanyCreate(BaseModel):
+    name: str
+    industry: str
+
+class BranchCreate(BaseModel):
+    company_code: str
+    name: str
+    location: str
+
+class SectionCreate(BaseModel):
+    branch_code: str
+    name: str
+
+class IssueTypeCreate(BaseModel):
+    section_code: str
+    name: str
 
 app = FastAPI()
 
@@ -392,33 +440,135 @@ def get_tickets(
     return tickets
 
 @app.get("/api/companies")
-def get_companies():
-    companies = list(companies_collection.find({}, {"_id": 0}))
+def get_companies(current_user: dict = Depends(get_current_active_user)):
+    user_role = current_user.get("role")
+    query = {}
+    if user_role != "SuperAdmin":
+        query["company_code"] = current_user.get("company_id")
+    
+    companies = list(companies_collection.find(query, {"_id": 0}))
     return companies
 
 @app.get("/api/branches")
-def get_branches(company_code: Optional[str] = None):
+def get_branches(company_code: Optional[str] = None, current_user: dict = Depends(get_current_active_user)):
+    user_role = current_user.get("role")
+    user_company = current_user.get("company_id")
+    
     query = {}
-    if company_code:
+    if user_role != "SuperAdmin":
+        # Force the query to the user's company
+        query["company_code"] = user_company
+    elif company_code:
         query["company_code"] = company_code
+        
     branches = list(branches_collection.find(query, {"_id": 0}))
     return branches
 
 @app.get("/api/sections")
-def get_sections(branch_code: Optional[str] = None):
+def get_sections(branch_code: Optional[str] = None, current_user: dict = Depends(get_current_active_user)):
+    user_role = current_user.get("role")
+    user_branch = current_user.get("branch_id")
+    
     query = {}
-    if branch_code:
+    if user_role == "Staff":
+        # Force the query to the user's branch
+        query["branch_code"] = user_branch
+    elif branch_code:
         query["branch_code"] = branch_code
+        
     sections = list(sections_collection.find(query, {"_id": 0}))
     return sections
 
 @app.get("/api/issue-types")
-def get_issue_types(section_code: Optional[str] = None):
+def get_issue_types(section_code: Optional[str] = None, current_user: dict = Depends(get_current_active_user)):
+    # These are already filtered by section_code which is cascading.
+    # No strict role check needed here for now as they are generic types.
     query = {}
     if section_code:
         query["section_code"] = section_code
     issue_types = list(issue_types_collection.find(query, {"_id": 0}))
     return issue_types
+
+@app.post("/api/companies")
+def create_company(company_req: CompanyCreate, current_user: dict = Depends(get_current_active_user)):
+    user_role = current_user.get("role")
+    if user_role != "SuperAdmin":
+        raise HTTPException(status_code=403, detail="Only SuperAdmin can add companies")
+        
+    new_company_code = generate_next_id(companies_collection, "company_code", "CMP")
+        
+    company_data = {
+        "company_code": new_company_code,
+        "name": company_req.name,
+        "industry": company_req.industry,
+        "create_date": datetime.utcnow()
+    }
+    
+    companies_collection.insert_one(company_data)
+    return {"status": "success", "message": "Company created successfully"}
+
+@app.post("/api/branches")
+def create_branch(branch_req: BranchCreate, current_user: dict = Depends(get_current_active_user)):
+    user_role = current_user.get("role")
+    if user_role != "SuperAdmin":
+        raise HTTPException(status_code=403, detail="Only SuperAdmin can add branches")
+        
+    if not companies_collection.find_one({"company_code": branch_req.company_code}):
+        raise HTTPException(status_code=400, detail="Company code does not exist")
+        
+    new_branch_code = generate_next_id(branches_collection, "branch_code", "BR")
+        
+    branch_data = {
+        "company_code": branch_req.company_code,
+        "branch_code": new_branch_code,
+        "name": branch_req.name,
+        "location": branch_req.location,
+        "created_at": datetime.utcnow()
+    }
+    
+    branches_collection.insert_one(branch_data)
+    return {"status": "success", "message": "Branch created successfully"}
+
+@app.post("/api/sections")
+def create_section(section_req: SectionCreate, current_user: dict = Depends(get_current_active_user)):
+    user_role = current_user.get("role")
+    if user_role != "SuperAdmin":
+        raise HTTPException(status_code=403, detail="Only SuperAdmin can add sections")
+        
+    if not branches_collection.find_one({"branch_code": section_req.branch_code}):
+        raise HTTPException(status_code=400, detail="Branch code does not exist")
+        
+    new_section_code = generate_next_id(sections_collection, "section_code", "SEC")
+        
+    section_data = {
+        "branch_code": section_req.branch_code,
+        "section_code": new_section_code,
+        "name": section_req.name
+    }
+    
+    sections_collection.insert_one(section_data)
+    return {"status": "success", "message": "Section created successfully"}
+
+@app.post("/api/issue-types")
+def create_issue_type(issue_type_req: IssueTypeCreate, current_user: dict = Depends(get_current_active_user)):
+    user_role = current_user.get("role")
+    if user_role != "SuperAdmin":
+        raise HTTPException(status_code=403, detail="Only SuperAdmin can add issue types")
+        
+    if not sections_collection.find_one({"section_code": issue_type_req.section_code}):
+        raise HTTPException(status_code=400, detail="Section code does not exist")
+        
+    new_issue_type_id = generate_next_id(issue_types_collection, "issue_type_id", "IT")
+        
+    issue_type_data = {
+        "issue_type_id": new_issue_type_id,
+        "section_code": issue_type_req.section_code,
+        "name": issue_type_req.name
+    }
+    
+    issue_types_collection.insert_one(issue_type_data)
+    return {"status": "success", "message": "Issue type created successfully"}
+
 
 # Request model for generating a secure token
 class QRTokenRequest(BaseModel):
@@ -464,15 +614,19 @@ def validate_qr_token(token: str = Query(..., description="The secure QR token")
 
 @app.get("/api/analytics")
 def get_analytics(
+    company_id: Optional[str] = None,
     current_user: dict = Depends(get_current_active_user)
 ):
     user_role = current_user.get("role")
-    if user_role == "Staff":
-        raise HTTPException(status_code=403, detail="Not authorized to view analytics dashboard")
-        
+    
     query = {}
     if user_role == "CompanyAdmin":
         query["company_id"] = current_user.get("company_id")
+    elif user_role == "Staff":
+        query["company_id"] = current_user.get("company_id")
+        query["branch_id"] = current_user.get("branch_id")
+    elif user_role == "SuperAdmin" and company_id:
+        query["company_id"] = company_id.upper()
 
     # Total tickets
     total_tickets = tickets_collection.count_documents(query)
@@ -570,26 +724,23 @@ async def analyze_image(file: UploadFile = File(...)):
     return {**analysis, "image_url": image_url}
 
 
-@app.post("/api/classify")
-def classify_ticket(request: TicketRequest):
-
-    # 1. Validate Company
+@app.post("/api/analyze-ticket")
+def analyze_ticket(request: TicketAnalyzeRequest):
+    # 1. Validate Hierarchy quickly
     company = companies_collection.find_one({"company_code": request.company_id})
     if not company:
         raise HTTPException(status_code=400, detail=f"Invalid company '{request.company_id}'.")
 
-    # 2. Validate Branch belongs to Company
     if request.branch_id:
         branch = branches_collection.find_one({"branch_code": request.branch_id, "company_code": request.company_id})
         if not branch:
-            raise HTTPException(status_code=400, detail=f"Branch '{request.branch_id}' does not belong to Company '{request.company_id}' or does not exist.")
+            raise HTTPException(status_code=400, detail=f"Branch '{request.branch_id}' invalid.")
 
-    # 3. Validate Section belongs to Branch
-    if request.section_id:
-        section = sections_collection.find_one({"section_code": request.section_id, "branch_code": request.branch_id})
-        if not section:
-            raise HTTPException(status_code=400, detail=f"Section '{request.section_id}' does not belong to Branch '{request.branch_id}' or does not exist.")
+    # 2. Call AI
+    ai_result = classify_with_ai(request.message)
 
+    if "error" in ai_result:
+        return {"error": "AI classification failed", "details": ai_result["error"]}
     # 4. Validate Issue Type belongs to Section
     if request.issue_type_id:
         issue_type = issue_types_collection.find_one({
@@ -606,13 +757,71 @@ def classify_ticket(request: TicketRequest):
         if "error" in ai_result:
             return {"error": "AI classification failed", "details": ai_result["error"]}
 
+    category = ai_result.get("category", "General Complaint")
+    priority = ai_result.get("priority", "Medium")
+    message_str = str(request.message)
+    summary = ai_result.get("summary", message_str[:50] + "...")
     category_raw = request.category or ai_result.get("category", "General Complaint")
     priority_raw = request.priority or ai_result.get("priority", "Medium")
 
+    category = category if category in ALLOWED_CATEGORIES else "General Complaint"
+    priority = priority if priority in ALLOWED_PRIORITIES else "Medium"
     # Clamp values to allowed lists (case-insensitive).
     category = _map_to_allowed(category_raw, ALLOWED_CATEGORIES) or "General Complaint"
     priority = _map_to_allowed(priority_raw, ALLOWED_PRIORITIES) or "Medium"
 
+    return {
+        "status": "success",
+        "analysis": {
+            "category": category,
+            "priority": priority,
+            "summary": summary
+        }
+    }
+
+
+@app.post("/api/submit-ticket")
+def submit_ticket(request: TicketSubmitRequest):
+    # 1. Relational Validation
+    company = companies_collection.find_one({"company_code": request.company_id})
+    if not company:
+        raise HTTPException(status_code=400, detail=f"Invalid company '{request.company_id}'.")
+
+    if request.branch_id:
+        branch = branches_collection.find_one({"branch_code": request.branch_id, "company_code": request.company_id})
+        if not branch:
+            raise HTTPException(status_code=400, detail=f"Invalid branch '{request.branch_id}'.")
+
+    if request.section_id:
+        # Check if section exists in this branch
+        section = sections_collection.find_one({"section_code": request.section_id, "branch_code": request.branch_id})
+        # If it doesn't exist, we'll still proceed for now as per enterprise flexibility patterns
+        # but we could raise an error if needed.
+
+    # 2. AI Enrichment (if missing)
+    final_category = request.category
+    final_priority = request.priority
+    final_summary = request.summary
+
+    if not final_category or not final_priority or not final_summary:
+        ai_result = classify_with_ai(request.message)
+        
+        if "error" not in ai_result:
+            if not final_category:
+                raw_cat = ai_result.get("category", "General Complaint")
+                final_category = raw_cat if raw_cat in ALLOWED_CATEGORIES else "General Complaint"
+            if not final_priority:
+                raw_pri = ai_result.get("priority", "Medium")
+                final_priority = raw_pri if raw_pri in ALLOWED_PRIORITIES else "Medium"
+            if not final_summary:
+                final_summary = ai_result.get("summary", str(request.message)[:50] + "...")
+        else:
+            # Fallback
+            final_category = final_category or "General Complaint"
+            final_priority = final_priority or "Medium"
+            final_summary = final_summary or str(request.message)[:50] + "..."
+
+    # 3. Storage
     summary = ai_result.get("summary") if isinstance(ai_result, dict) else None
     if not summary:
         # For image-based tickets, default summary to the extracted issue keyword.
@@ -623,12 +832,12 @@ def classify_ticket(request: TicketRequest):
     ticket_data = {
         "company_id": request.company_id,
         "branch_id": request.branch_id,
-        "section_id": request.section_id,
-        "issue_type_id": request.issue_type_id,
+        "section_id": request.section_id or "",
+        "issue_type_id": request.issue_type_id or "",
         "message": request.message,
-        "category": category,
-        "priority": priority,
-        "summary": summary,
+        "category": final_category,
+        "priority": final_priority,
+        "summary": final_summary,
         "status": "Open",   
         "created_at": datetime.utcnow()
     }
@@ -637,17 +846,14 @@ def classify_ticket(request: TicketRequest):
         ticket_data["imageurl"] = request.imageurl
 
     result = tickets_collection.insert_one(ticket_data)
-
-    # ticket_data is modified in-place by insert_one and now contains `_id` (ObjectId)
-    # We must remove it or convert it to string before returning, as ObjectId is not JSON serializable.
-    ticket_data.pop("_id", None)
-
-    response_data = {
-        **ticket_data,
-        "inserted_id": str(result.inserted_id)
+    
+    return {
+        "status": "success",
+        "inserted_id": str(result.inserted_id),
+        "category": final_category,
+        "priority": final_priority,
+        "summary": final_summary
     }
-
-    return response_data
 
 @app.get("/api/ai-insights/{company_id}")
 def get_ai_insights(
@@ -656,7 +862,7 @@ def get_ai_insights(
 ):
     user_role = current_user.get("role")
     if user_role == "Staff":
-        raise HTTPException(status_code=403, detail="Not authorized to view AI Insights")
+        raise HTTPException(status_code=403, detail="DEBUG_SIG: Not authorized to view AI Insights")
     if user_role == "CompanyAdmin" and current_user.get("company_id") != company_id:
         raise HTTPException(status_code=403, detail="Not authorized to view AI Insights for this company")
         

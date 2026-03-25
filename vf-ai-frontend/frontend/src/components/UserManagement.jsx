@@ -107,17 +107,21 @@ function UserManagement() {
 
     return (
         <div className="app-container dashboard-page">
-            <h2 className="title">User Management</h2>
-            <p className="subtitle">Manage system access, roles, and branch assignments.</p>
+            <div className="page-header">
+                <div className="page-header-content">
+                    <h1 className="page-title">User Management</h1>
+                    <p className="page-subtitle">Manage system access, roles, and branch assignments.</p>
+                </div>
+            </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(300px, 1fr) 2fr', gap: '24px', marginTop: '24px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(320px, 1fr) 2fr', gap: '32px', marginTop: '24px' }}>
 
                 {/* Create User Form Box */}
-                <div className="card" style={{ padding: '24px' }}>
+                <div className="card">
                     <h3 style={{ margin: '0 0 16px 0', fontSize: '16px' }}>Create New User</h3>
 
-                    {message && <div style={{ color: 'var(--success)', background: '#ECFDF5', padding: '12px', borderRadius: '6px', fontSize: '13px', marginBottom: '16px' }}>{message}</div>}
-                    {error && <div style={{ color: 'var(--error)', background: '#FEF2F2', padding: '12px', borderRadius: '6px', fontSize: '13px', marginBottom: '16px' }}>{error}</div>}
+                    {message && <div style={{ color: 'var(--color-success-text)', background: 'var(--color-success-bg)', padding: '12px', borderRadius: 'var(--radius-sm)', fontSize: '13px', marginBottom: '16px' }}>{message}</div>}
+                    {error && <div style={{ color: 'var(--color-danger-text)', background: 'var(--color-danger-bg)', padding: '12px', borderRadius: 'var(--radius-sm)', fontSize: '13px', marginBottom: '16px' }}>{error}</div>}
 
                     <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                         <div className="form-group full-width">
@@ -178,16 +182,16 @@ function UserManagement() {
                             </div>
                         )}
 
-                        <button type="submit" className="btn-submit" style={{ marginTop: '8px' }}>Create Account</button>
+                        <button type="submit" className="btn-primary btn-md" style={{ marginTop: '16px' }}>Create Account</button>
                     </form>
                 </div>
 
                 {/* Users Table */}
-                <div className="card" style={{ padding: '24px', display: 'flex', flexDirection: 'column' }}>
+                <div className="card">
                     <h3 style={{ margin: '0 0 16px 0', fontSize: '16px' }}>Existing Accounts</h3>
 
                     {loading ? (
-                        <div className="spinner" style={{ margin: 'auto', borderColor: 'var(--primary)', borderTopColor: 'transparent' }}></div>
+                        <div className="spinner" style={{ margin: 'auto', borderColor: 'var(--color-brand)', borderTopColor: 'transparent' }}></div>
                     ) : (
                         <div className="table-container" style={{ margin: 0, border: 'none' }}>
                             <table className="ticket-table" style={{ margin: 0 }}>
@@ -206,20 +210,20 @@ function UserManagement() {
                                             <tr key={u.id}>
                                                 <td style={{ fontWeight: '600' }}>{u.email}</td>
                                                 <td><span className={`badge priority-badge ${u.role === 'SuperAdmin' ? 'high' : u.role === 'CompanyAdmin' ? 'medium' : 'low'}`}>{u.role}</span></td>
-                                                <td><span style={{ color: "var(--text-muted)" }}>{u.company_id || "-"}</span></td>
-                                                <td><span style={{ color: "var(--text-muted)" }}>{u.branch_id || "-"}</span></td>
+                                                <td><span style={{ color: "var(--color-text-subtle)" }}>{u.company_id || "-"}</span></td>
+                                                <td><span style={{ color: "var(--color-text-subtle)" }}>{u.branch_id || "-"}</span></td>
                                                 <td>
                                                     {(user?.role === "SuperAdmin" || (user?.role === "CompanyAdmin" && u.role === "Staff")) && (
                                                         <div style={{ display: 'flex', gap: '8px' }}>
-                                                            <button onClick={() => handleChangePassword(u.id, u.email)} className="btn-secondary" style={{ padding: '4px 8px', fontSize: '12px' }}>Reset PW</button>
-                                                            <button onClick={() => handleDeleteUser(u.id, u.email)} className="btn-secondary" style={{ padding: '4px 8px', fontSize: '12px', border: '1px solid var(--error)', color: 'var(--error)' }}>Delete</button>
+                                                            <button onClick={() => handleChangePassword(u.id, u.email)} className="btn-tertiary btn-sm">Reset PW</button>
+                                                            <button onClick={() => handleDeleteUser(u.id, u.email)} className="btn-destructive btn-sm">Delete</button>
                                                         </div>
                                                     )}
                                                 </td>
                                             </tr>
                                         ))
                                     ) : (
-                                        <tr><td colSpan="5" style={{ textAlign: 'center', padding: '24px', color: 'var(--text-muted)' }}>No users found.</td></tr>
+                                        <tr><td colSpan="5" className="empty-state">No users found.</td></tr>
                                     )}
                                 </tbody>
                             </table>

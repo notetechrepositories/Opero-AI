@@ -598,3 +598,96 @@ textarea.form-control {
 .priority-badge.high { background: #FEE2E2; color: #DC2626; }
 .priority-badge.medium { background: #FEF3C7; color: #D97706; }
 .priority-badge.low { background: #E0E7FF; color: #4F46E5; }
+/* Image Upload & AI Analysis */
+.upload-zone {
+  border: 2px dashed var(--border-color);
+  border-radius: 12px;
+  padding: 40px;
+  text-align: center;
+  background-color: var(--input-bg);
+  transition: all 0.3s ease;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+}
+
+.upload-zone:hover, .upload-zone.drag-over {
+  border-color: var(--primary);
+  background-color: rgba(79, 70, 229, 0.05);
+}
+
+.upload-zone.analyzing {
+  border-color: var(--primary);
+  cursor: wait;
+}
+
+.upload-placeholder p {
+  margin: 10px 0 5px;
+  font-weight: 500;
+  color: var(--text-main);
+}
+
+.upload-placeholder small {
+  color: var(--text-muted);
+}
+
+.image-preview-container {
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+}
+
+.image-preview {
+  max-width: 100%;
+  max-height: 300px;
+  border-radius: 8px;
+  box-shadow: var(--shadow-md);
+}
+
+.remove-image {
+  position: absolute;
+  top: -10px;
+  right: -10px;
+  background-color: var(--error);
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+  font-size: 12px;
+  box-shadow: var(--shadow-sm);
+  z-index: 10;
+}
+
+.analysis-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(255, 255, 255, 0.8);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  border-radius: 8px;
+  backdrop-filter: blur(2px);
+}
+
+.analysis-overlay .spinner {
+  width: 24px;
+  height: 24px;
+  border-top-color: var(--primary);
+}
+
+.analysis-overlay p {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--primary);
+}

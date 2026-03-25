@@ -16,11 +16,24 @@ function RaiseTicket() {
         branch_id: "",
         section_id: "",
         issue_type_id: "",
-        message: ""
+        message: "",
+        category: "",
+        priority: "",
+        imageurl: ""
     });
 
     const [response, setResponse] = useState(null);
     const [loading, setLoading] = useState(false);
+
+    // New states for image and AI analysis
+    const [selectedImage, setSelectedImage] = useState(null);
+    const [imagePreview, setImagePreview] = useState(null);
+    const [isAnalyzing, setIsAnalyzing] = useState(false);
+    const [aiError, setAiError] = useState(null);
+    const [isDragOver, setIsDragOver] = useState(false);
+    const [didUserEditMessage, setDidUserEditMessage] = useState(false);
+    const [didUserEditCategory, setDidUserEditCategory] = useState(false);
+    const [didUserEditPriority, setDidUserEditPriority] = useState(false);
 
     // Cascading dropdown states
     const [companies, setCompanies] = useState([]);
@@ -113,6 +126,10 @@ function RaiseTicket() {
     const handleChange = (e) => {
         const { name, value } = e.target;
 
+        if (name === "message") setDidUserEditMessage(true);
+        if (name === "category") setDidUserEditCategory(true);
+        if (name === "priority") setDidUserEditPriority(true);
+
         setFormData((prev) => {
             let updatedForm = { ...prev, [name]: value };
 
@@ -129,6 +146,51 @@ function RaiseTicket() {
 
             return updatedForm;
         });
+    };
+
+    const processImageFile = async (file) => {
+        if (!file) return;
+
+        if (!["image/jpeg", "image/png"].includes(file.type)) {
+            alert("Please upload only JPG or PNG images.");
+            return;
+        }
+
+        setSelectedImage(file);
+        setImagePreview(URL.createObjectURL(file));
+        setAiError(null);
+        setIsAnalyzing(true);
+
+        try {
+            const formDataPayload = new FormData();
+            formDataPayload.append("file", file);
+
+            const res = await axios.post("/api/analyze-image", formDataPayload, {
+                headers: { "Content-Type": "multipart/form-data" }
+            });
+
+            const { issue, category, priority, image_url } = res.data || {};
+
+            setFormData(prev => ({
+                ...prev,
+                imageurl: image_url || prev.imageurl,
+                // Auto-fill only when user hasn't edited yet (or field is empty).
+                message: (prev.message || "").trim() === "" || !didUserEditMessage ? (issue || prev.message) : prev.message,
+                category: (prev.category || "").trim() === "" || !didUserEditCategory ? (category || prev.category) : prev.category,
+                priority: (prev.priority || "").trim() === "" || !didUserEditPriority ? (priority || prev.priority) : prev.priority,
+            }));
+        } catch (err) {
+            console.error("AI Analysis failed", err);
+            const detail = err?.response?.data?.detail;
+            setAiError(detail ? `AI analysis failed: ${detail}` : "AI analysis failed. Please fill the fields manually.");
+        } finally {
+            setIsAnalyzing(false);
+        }
+    };
+
+    const handleImageChange = (e) => {
+        const file = e.target.files && e.target.files[0];
+        processImageFile(file);
     };
 
     const handleSubmit = async (e) => {
@@ -231,6 +293,53 @@ function RaiseTicket() {
                     </div>
                 </div>
 
+                <div className="form-group full-width" style={{ marginTop: "1rem" }}>
+                    <label className="form-label">Upload Image (AI Analysis)</label>
+                    <div
+                        className="upload-zone"
+                        style={{
+                            border: isDragOver ? "2px dashed #3b82f6" : "2px dashed rgba(148,163,184,0.6)",
+                            borderRadius: "12px",
+                            padding: "14px",
+                            background: "rgba(15,23,42,0.1)",
+                            transition: "border-color 0.15s ease"
+                        }}
+                        onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
+                        onDragLeave={(e) => { e.preventDefault(); setIsDragOver(false); }}
+                        onDrop={(e) => {
+                            e.preventDefault();
+                            setIsDragOver(false);
+                            const file = e.dataTransfer.files && e.dataTransfer.files[0];
+                            if (file) processImageFile(file);
+                        }}
+                    >
+                        <input
+                            type="file"
+                            accept="image/png, image/jpeg"
+                            onChange={handleImageChange}
+                            disabled={isAnalyzing}
+                            style={{ width: "100%" }}
+                        />
+
+                        {isAnalyzing && (
+                            <div style={{ display: "flex", alignItems: "center", gap: "10px", marginTop: "10px" }}>
+                                <div className="spinner"></div>
+                                <span>Analyzing Image...</span>
+                            </div>
+                        )}
+
+                        {aiError && <p style={{ color: "#EF4444", marginTop: "10px" }}>{aiError}</p>}
+
+                        {imagePreview && (
+                            <img
+                                src={imagePreview}
+                                alt="Preview"
+                                style={{ marginTop: "10px", maxWidth: "220px", borderRadius: "8px" }}
+                            />
+                        )}
+                    </div>
+                </div>
+
                 <div className="form-group full-width">
                     <label className="form-label">Description</label>
                     <textarea
@@ -243,7 +352,7 @@ function RaiseTicket() {
                     />
                 </div>
 
-                <button type="submit" className="btn-submit" disabled={loading}>
+                <button type="submit" className="btn-submit" disabled={loading || isAnalyzing}>
                     {loading ? (
                         <>
                             <div className="spinner"></div>
@@ -260,20 +369,6 @@ function RaiseTicket() {
                     <h3 className="result-title">Classification Successful</h3>
 
                     <div className="result-grid">
-                        <div className="result-item">
-                            <span className="result-label">Assigned Category</span>
-                            <span className="result-value"><span className="badge">{response.category}</span></span>
-                        </div>
-
-                        <div className="result-item">
-                            <span className="result-label">Determined Priority</span>
-                            <span className="result-value">
-                                <span className={`badge ${response.priority?.toLowerCase() === 'high' ? 'high' : ''}`}>
-                                    {response.priority}
-                                </span>
-                            </span>
-                        </div>
-
                         <div className="result-item full">
                             <span className="result-label">AI Summary</span>
                             <span className="result-value">{response.summary}</span>

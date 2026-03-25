@@ -1,8 +1,13 @@
 import os
+from pathlib import Path
 from pymongo import MongoClient
 from dotenv import load_dotenv
 
-load_dotenv()  # loads from project root
+# Load .env relative to this file, not the current working directory.
+# This prevents surprises when the server is started from a different folder.
+_PROJECT_ROOT = Path(__file__).resolve().parents[2]  # VoiceFirst-AI/
+_DOTENV_PATH = _PROJECT_ROOT / ".env"
+load_dotenv(dotenv_path=_DOTENV_PATH)
 
 MONGO_URI = os.getenv("MONGO_URI")
 

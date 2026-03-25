@@ -60,13 +60,13 @@ export default function ForgotPassword() {
             />
           </div>
 
-          <button type="submit" className="btn-submit" disabled={submitting} style={{ marginTop: "16px" }}>
+          <button type="submit" className="btn-primary" disabled={submitting} style={{ marginTop: "16px", width: '100%', height: '40px' }}>
             {submitting ? <div className="spinner"></div> : "Send reset link"}
           </button>
         </form>
 
         <div style={{ textAlign: "center", marginTop: "24px", fontSize: "14px" }}>
-          <Link to="/login" style={{ color: "var(--primary)", textDecoration: "none", fontWeight: "500" }}>
+          <Link to="/login" style={{ color: "var(--color-brand)", textDecoration: "none", fontWeight: "500" }}>
             ← Back to login
           </Link>
         </div>

@@ -1,6 +1,13 @@
 import os
 import smtplib
 from email.message import EmailMessage
+from pathlib import Path
+from dotenv import load_dotenv
+
+# Ensure local `.env` is loaded even when the caller hasn't imported `app.db.database`.
+_PROJECT_ROOT = Path(__file__).resolve().parents[2]  # VoiceFirst-AI/
+_DOTENV_PATH = _PROJECT_ROOT / ".env"
+load_dotenv(dotenv_path=_DOTENV_PATH)
 
 
 def send_password_reset_email(to_email: str, reset_link: str) -> None:

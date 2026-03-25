@@ -134,132 +134,172 @@ function RaiseTicket() {
     const handleSubmit = async (e) => {
         e.preventDefault();
         setLoading(true);
-        setResponse(null);
 
         try {
-            const res = await axios.post("/api/classify", formData, {
+            // We now send the message, company, and branch directly.
+            // The backend will handle the AI analysis and storage in one atomic operation.
+            const res = await axios.post("/api/submit-ticket", formData, {
                 headers: { "Content-Type": "application/json" }
             });
-            setResponse(res.data);
+
+            setTimeout(() => {
+                setResponse(res.data);
+                setLoading(false);
+            }, 1000); // Slight delay to show the "Analyzing..." state
         } catch (error) {
             console.error(error);
-            alert("Error submitting ticket");
-        } finally {
+            alert("Error submitting request. Please try again.");
             setLoading(false);
         }
     };
 
+    const handleEditChange = (e) => {
+        const { name, value } = e.target;
+        setFormData(prev => ({ ...prev, [name]: value }));
+    };
+
     return (
-        <div className="app-container">
-            <h2 className="title">New Support Request</h2>
-            <p className="subtitle">Please provide the details below, and our AI will automatically classify and route your ticket.</p>
-
-            <form onSubmit={handleSubmit}>
-                <div className="form-grid">
-                    <div className="form-group">
-                        <label className="form-label">Company</label>
-                        <select
-                            name="company_id"
-                            className="form-control"
-                            value={formData.company_id}
-                            onChange={handleChange}
-                            required
-                            disabled={loadingDropdowns}
-                        >
-                            <option value="" disabled>Select Company...</option>
-                            {companies.map(c => (
-                                <option key={c.company_code || c.id} value={c.company_code || c.id}>
-                                    {c.company_name || c.name || c.company_code}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
-
-                    <div className="form-group">
-                        <label className="form-label">Branch</label>
-                        <select
-                            name="branch_id"
-                            className="form-control"
-                            value={formData.branch_id}
-                            onChange={handleChange}
-                            required
-                            disabled={!formData.company_id}
-                        >
-                            <option value="" disabled>Select Branch...</option>
-                            {branches.map(b => (
-                                <option key={b.branch_code || b.id} value={b.branch_code || b.id}>
-                                    {b.branch_name || b.name || b.branch_code}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
-
-                    <div className="form-group">
-                        <label className="form-label">Section</label>
-                        <select
-                            name="section_id"
-                            className="form-control"
-                            value={formData.section_id}
-                            onChange={handleChange}
-                            disabled={!formData.branch_id}
-                        >
-                            <option value="" disabled>Select Section...</option>
-                            {sections.map(s => (
-                                <option key={s.section_code || s.id} value={s.section_code || s.id}>
-                                    {s.section_name || s.name || s.section_code}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
-
-                    <div className="form-group">
-                        <label className="form-label">Issue Type</label>
-                        <select
-                            name="issue_type_id"
-                            className="form-control"
-                            value={formData.issue_type_id}
-                            onChange={handleChange}
-                            disabled={!formData.section_id}
-                        >
-                            <option value="" disabled>Select Issue Type...</option>
-                            {issueTypes.map(it => (
-                                <option key={it.issue_type_id || it.id || it.issue_type_code} value={it.issue_type_id || it.id || it.issue_type_code}>
-                                    {it.issue_type_name || it.name || it.issue_type_code || it.issue_type_id}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
+        <div className="app-container dashboard-page" style={{ maxWidth: '1000px' }}>
+            <div className="page-header">
+                <div className="page-header-content">
+                    <h1 className="page-title">Raise a Request</h1>
+                    <p className="page-subtitle">Describe your issue below. Our AI assistant will automatically classify, prioritize, and route it to the right team.</p>
                 </div>
+            </div>
 
-                <div className="form-group full-width">
-                    <label className="form-label">Description</label>
-                    <textarea
-                        name="message"
-                        className="form-control"
-                        placeholder="Please describe your issue in detail..."
-                        value={formData.message}
-                        onChange={handleChange}
-                        required
-                    />
-                </div>
+            {(!response) && (
+                <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
 
-                <button type="submit" className="btn-submit" disabled={loading}>
-                    {loading ? (
-                        <>
-                            <div className="spinner"></div>
-                            Processing via AI...
-                        </>
-                    ) : (
-                        "Submit Ticket"
-                    )}
-                </button>
-            </form>
+                    {/* Primary Group */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                            <div className="form-group" style={{ margin: 0 }}>
+                                <label className="form-label" style={{ fontWeight: '600', color: 'var(--color-text)' }}>Organization <span style={{ color: 'var(--color-danger)' }}>*</span></label>
+                                <select
+                                    name="company_id"
+                                    className="form-control"
+                                    value={formData.company_id}
+                                    onChange={handleChange}
+                                    required
+                                    disabled={loading || loadingDropdowns}
+                                    style={{ height: '40px' }}
+                                >
+                                    <option value="" disabled>Select Company...</option>
+                                    {companies.map(c => (
+                                        <option key={c.company_code || c.id} value={c.company_code || c.id}>
+                                            {c.company_name || c.name || c.company_code}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            <div className="form-group" style={{ margin: 0 }}>
+                                <label className="form-label" style={{ fontWeight: '600', color: 'var(--color-text)' }}>Branch <span style={{ color: 'var(--color-danger)' }}>*</span></label>
+                                <select
+                                    name="branch_id"
+                                    className="form-control"
+                                    value={formData.branch_id}
+                                    onChange={handleChange}
+                                    required
+                                    disabled={loading || !formData.company_id}
+                                    style={{ height: '40px' }}
+                                >
+                                    <option value="" disabled>Select Branch...</option>
+                                    {branches.map(b => (
+                                        <option key={b.branch_code || b.id} value={b.branch_code || b.id}>
+                                            {b.branch_name || b.name || b.branch_code}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                        </div>
+
+                        <div className="form-group" style={{ margin: 0 }}>
+                            <label className="form-label" style={{ fontWeight: '600', color: 'var(--color-text)', display: 'flex', justifyContent: 'space-between' }}>
+                                <span>Description <span style={{ color: 'var(--color-danger)' }}>*</span></span>
+                            </label>
+                            <textarea
+                                name="message"
+                                className="form-control"
+                                placeholder="What do you need help with? Please provide as much detail as possible..."
+                                value={formData.message}
+                                onChange={handleChange}
+                                required
+                                disabled={loading}
+                                style={{ minHeight: '120px', resize: 'vertical' }}
+                            />
+                        </div>
+                    </div>
+
+                    {/* Secondary/Optional Group */}
+                    <div style={{ background: 'var(--color-bg-sunken)', padding: '24px', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-border)' }}>
+                        <h4 style={{ margin: '0 0 16px 0', fontSize: '13px', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--color-text-subtle)' }}>Optional Routing Context</h4>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                            <div className="form-group" style={{ margin: 0 }}>
+                                <label className="form-label">Section</label>
+                                <select
+                                    name="section_id"
+                                    className="form-control"
+                                    value={formData.section_id}
+                                    onChange={handleChange}
+                                    disabled={loading || !formData.branch_id}
+                                    style={{ backgroundColor: 'var(--color-bg-surface)' }}
+                                >
+                                    <option value="" disabled>I'm not sure...</option>
+                                    {sections.map(s => (
+                                        <option key={s.section_code || s.id} value={s.section_code || s.id}>
+                                            {s.section_name || s.name || s.section_code}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            <div className="form-group" style={{ margin: 0 }}>
+                                <label className="form-label">Issue Type</label>
+                                <select
+                                    name="issue_type_id"
+                                    className="form-control"
+                                    value={formData.issue_type_id}
+                                    onChange={handleChange}
+                                    disabled={loading || !formData.section_id}
+                                    style={{ backgroundColor: 'var(--color-bg-surface)' }}
+                                >
+                                    <option value="" disabled>I'm not sure...</option>
+                                    {issueTypes.map(it => (
+                                        <option key={it.issue_type_id || it.id || it.issue_type_code} value={it.issue_type_id || it.id || it.issue_type_code}>
+                                            {it.issue_type_name || it.name || it.issue_type_code || it.issue_type_id}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '8px', borderTop: '1px solid var(--color-border)', paddingTop: '24px' }}>
+                        <button type="submit" className="btn-primary btn-lg" disabled={loading} style={{ minWidth: '200px' }}>
+                            {loading ? (
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}>
+                                    <div className="spinner" style={{ width: '16px', height: '16px', borderWidth: '2px', borderTopColor: 'currentColor', borderColor: 'rgba(255,255,255,0.3)' }}></div>
+                                    Submitting & Analyzing...
+                                </div>
+                            ) : (
+                                "Submit Request"
+                            )}
+                        </button>
+                    </div>
+                </form>
+            )}
 
             {response && (
-                <div className="result-box">
-                    <h3 className="result-title">Classification Successful</h3>
+                <div className="result-box" style={{ background: 'var(--color-bg-surface)', border: '1px solid rgba(0, 135, 90, 0.2)', padding: '32px', borderRadius: 'var(--radius-md)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px', paddingBottom: '16px', borderBottom: '1px solid var(--color-border)' }}>
+                        <div style={{ background: 'var(--color-success-bg)', color: 'var(--color-success)', borderRadius: '50%', padding: '4px', display: 'flex' }}>
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+                        </div>
+                        <h3 className="result-title" style={{ margin: 0, fontSize: '16px', color: 'var(--color-text)' }}>Request Submitted Successfully</h3>
+                    </div>
 
-                    <div className="result-grid">
+                    <div className="result-grid" style={{ gridTemplateColumns: '1fr 1fr', rowGap: '20px' }}>
                         <div className="result-item">
                             <span className="result-label">Assigned Category</span>
                             <span className="result-value"><span className="badge">{response.category}</span></span>
@@ -268,21 +308,44 @@ function RaiseTicket() {
                         <div className="result-item">
                             <span className="result-label">Determined Priority</span>
                             <span className="result-value">
-                                <span className={`badge ${response.priority?.toLowerCase() === 'high' ? 'high' : ''}`}>
+                                <span className={`badge priority-badge ${response.priority?.toLowerCase() || 'unassigned'}`}>
                                     {response.priority}
                                 </span>
                             </span>
                         </div>
 
                         <div className="result-item full">
-                            <span className="result-label">AI Summary</span>
-                            <span className="result-value">{response.summary}</span>
+                            <span className="result-label">Final Title</span>
+                            <span className="result-value" style={{ lineHeight: '1.5' }}>{response.summary}</span>
                         </div>
 
                         <div className="result-item full">
-                            <span className="result-label">Ticket ID / Tracking</span>
-                            <span className="result-value" style={{ fontFamily: 'monospace', color: '#64748B' }}>{response.inserted_id}</span>
+                            <span className="result-label">Tracking ID</span>
+                            <span className="result-value" style={{ fontFamily: 'monospace', color: 'var(--color-text-subtle)', background: 'var(--color-bg-sunken)', padding: '4px 8px', borderRadius: '4px', display: 'inline-block' }}>{response.inserted_id}</span>
                         </div>
+                    </div>
+
+                    <div style={{ marginTop: '24px', display: 'flex', justifyContent: 'center' }}>
+                        <button
+                            type="button"
+                            className="btn-secondary"
+                            onClick={() => {
+                                setFormData({
+                                    company_id: "",
+                                    branch_id: "",
+                                    section_id: "",
+                                    issue_type_id: "",
+                                    message: "",
+                                    category: "",
+                                    priority: "",
+                                    summary: ""
+                                });
+                                setResponse(null);
+                            }}
+                            style={{ height: '36px', padding: '0 20px', fontSize: '14px' }}
+                        >
+                            Submit Another Request
+                        </button>
                     </div>
                 </div>
             )}

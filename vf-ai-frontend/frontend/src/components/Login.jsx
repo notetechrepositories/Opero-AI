@@ -31,11 +31,7 @@ const Login = () => {
             const { access_token, user } = response.data;
             login(access_token, user);
 
-            if (user.role === "Staff") {
-                navigate("/tickets"); // Staff cannot view the dashboard
-            } else {
-                navigate("/");
-            }
+            navigate("/");
         } catch (err) {
             console.error("Login Error", err);
             setError("Invalid email or password");
@@ -53,7 +49,7 @@ const Login = () => {
                     <p className="subtitle" style={{ marginBottom: 0 }}>Log in to access your VF AI Desk</p>
                 </div>
 
-                {error && <div style={{ color: 'var(--error)', background: '#FEF2F2', padding: '12px', borderRadius: '6px', fontSize: '14px', marginBottom: '16px', textAlign: 'center' }}>{error}</div>}
+                {error && <div style={{ color: 'var(--color-danger-text)', background: 'var(--color-danger-bg)', padding: '12px', borderRadius: 'var(--radius-sm)', fontSize: '14px', marginBottom: '16px', textAlign: 'center' }}>{error}</div>}
 
                 <form className="login-form" onSubmit={handleSubmit}>
                     <div className="form-group">
@@ -79,7 +75,7 @@ const Login = () => {
                             required
                         />
                     </div>
-                    <button type="submit" className="btn-submit" disabled={isSubmitting} style={{ marginTop: '24px' }}>
+                    <button type="submit" className="btn-primary" disabled={isSubmitting} style={{ marginTop: '24px', width: '100%', height: '40px' }}>
                         {isSubmitting ? (
                             <div className="spinner"></div>
                         ) : "Sign In"}
@@ -87,31 +83,14 @@ const Login = () => {
                 </form>
 
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '16px', fontSize: '14px' }}>
-                    <Link to="/forgot-password" style={{ color: 'var(--primary)', textDecoration: 'none', fontWeight: '500' }}>
+                    <Link to="/forgot-password" style={{ color: 'var(--color-brand)', textDecoration: 'none', fontWeight: '500' }}>
                         Forgot password?
                     </Link>
-                    <Link to="/raise-ticket" style={{ color: 'var(--primary)', textDecoration: 'none', fontWeight: '500' }}>
+                    <Link to="/raise-ticket" style={{ color: 'var(--color-brand)', textDecoration: 'none', fontWeight: '500' }}>
                         Back to Raise Ticket →
                     </Link>
                 </div>
             </div>
-
-            <style jsx>{`
-                .login-container {
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    height: 100vh;
-                    width: 100vw;
-                    background-color: var(--sidebar-bg);
-                }
-                .login-box {
-                    width: 100%;
-                    max-width: 400px;
-                    background: var(--card-bg);
-                    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-                }
-            `}</style>
         </div>
     );
 };

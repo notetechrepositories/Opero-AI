@@ -198,19 +198,14 @@ function RaiseTicket() {
         setLoading(true);
 
         try {
-            // We now send the message, company, and branch directly.
-            // The backend will handle the AI analysis and storage in one atomic operation.
             const res = await axios.post("/api/submit-ticket", formData, {
                 headers: { "Content-Type": "application/json" }
             });
-
-            setTimeout(() => {
-                setResponse(res.data);
-                setLoading(false);
-            }, 1000); // Slight delay to show the "Analyzing..." state
+            setResponse(res.data);
         } catch (error) {
             console.error(error);
             alert("Error submitting request. Please try again.");
+        } finally {
             setLoading(false);
         }
     };
@@ -276,21 +271,6 @@ function RaiseTicket() {
                             </div>
                         </div>
 
-                        <div className="form-group" style={{ margin: 0 }}>
-                            <label className="form-label" style={{ fontWeight: '600', color: 'var(--color-text)', display: 'flex', justifyContent: 'space-between' }}>
-                                <span>Description <span style={{ color: 'var(--color-danger)' }}>*</span></span>
-                            </label>
-                            <textarea
-                                name="message"
-                                className="form-control"
-                                placeholder="What do you need help with? Please provide as much detail as possible..."
-                                value={formData.message}
-                                onChange={handleChange}
-                                required
-                                disabled={loading}
-                                style={{ minHeight: '120px', resize: 'vertical' }}
-                            />
-                        </div>
                     </div>
 
                     {/* Secondary/Optional Group */}
@@ -337,8 +317,73 @@ function RaiseTicket() {
                         </div>
                     </div>
 
+                    {/* Image Upload + AI Analysis */}
+                    <div style={{ background: 'var(--color-bg-sunken)', padding: '24px', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-border)' }}>
+                        <h4 style={{ margin: '0 0 16px 0', fontSize: '13px', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--color-text-subtle)' }}>Image Analysis</h4>
+                        <div
+                            className="upload-zone"
+                            style={{
+                                border: isDragOver ? "2px dashed #3b82f6" : "2px dashed rgba(148,163,184,0.6)",
+                                borderRadius: "12px",
+                                padding: "14px",
+                                background: "rgba(15,23,42,0.1)",
+                                transition: "border-color 0.15s ease"
+                            }}
+                            onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
+                            onDragLeave={(e) => { e.preventDefault(); setIsDragOver(false); }}
+                            onDrop={(e) => {
+                                e.preventDefault();
+                                setIsDragOver(false);
+                                const file = e.dataTransfer.files && e.dataTransfer.files[0];
+                                if (file) processImageFile(file);
+                            }}
+                        >
+                            <input
+                                type="file"
+                                accept="image/png, image/jpeg"
+                                onChange={handleImageChange}
+                                disabled={isAnalyzing || loading}
+                                style={{ width: "100%" }}
+                            />
+
+                            {isAnalyzing && (
+                                <div style={{ display: "flex", alignItems: "center", gap: "10px", marginTop: "10px" }}>
+                                    <div className="spinner"></div>
+                                    <span>Analyzing Image...</span>
+                                </div>
+                            )}
+
+                            {aiError && <p style={{ color: "#EF4444", marginTop: "10px" }}>{aiError}</p>}
+
+                            {imagePreview && (
+                                <img
+                                    src={imagePreview}
+                                    alt="Preview"
+                                    style={{ marginTop: "10px", maxWidth: "220px", borderRadius: "8px" }}
+                                />
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Description at end of form */}
+                    <div className="form-group" style={{ margin: 0 }}>
+                        <label className="form-label" style={{ fontWeight: '600', color: 'var(--color-text)', display: 'flex', justifyContent: 'space-between' }}>
+                            <span>Description <span style={{ color: 'var(--color-danger)' }}>*</span></span>
+                        </label>
+                        <textarea
+                            name="message"
+                            className="form-control"
+                            placeholder="What do you need help with? Please provide as much detail as possible..."
+                            value={formData.message}
+                            onChange={handleChange}
+                            required
+                            disabled={loading}
+                            style={{ minHeight: '120px', resize: 'vertical' }}
+                        />
+                    </div>
+
                     <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '8px', borderTop: '1px solid var(--color-border)', paddingTop: '24px' }}>
-                        <button type="submit" className="btn-primary btn-lg" disabled={loading} style={{ minWidth: '200px' }}>
+                        <button type="submit" className="btn-primary btn-lg" disabled={loading || isAnalyzing} style={{ minWidth: '200px' }}>
                             {loading ? (
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}>
                                     <div className="spinner" style={{ width: '16px', height: '16px', borderWidth: '2px', borderTopColor: 'currentColor', borderColor: 'rgba(255,255,255,0.3)' }}></div>
@@ -400,8 +445,14 @@ function RaiseTicket() {
                                     message: "",
                                     category: "",
                                     priority: "",
-                                    summary: ""
+                                    imageurl: ""
                                 });
+                                setSelectedImage(null);
+                                setImagePreview(null);
+                                setAiError(null);
+                                setDidUserEditMessage(false);
+                                setDidUserEditCategory(false);
+                                setDidUserEditPriority(false);
                                 setResponse(null);
                             }}
                             style={{ height: '36px', padding: '0 20px', fontSize: '14px' }}

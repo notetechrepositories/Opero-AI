@@ -60,6 +60,7 @@ class TicketSubmitRequest(BaseModel):
     category: Optional[str] = None
     priority: Optional[str] = None
     summary: Optional[str] = None
+    imageurl: Optional[str] = None
 
 
 

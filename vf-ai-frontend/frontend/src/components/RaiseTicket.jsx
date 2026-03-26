@@ -19,7 +19,7 @@ function RaiseTicket() {
         message: "",
         category: "",
         priority: "",
-        imageurl: ""
+        image_url: ""
     });
 
     const [response, setResponse] = useState(null);
@@ -173,7 +173,7 @@ function RaiseTicket() {
 
             setFormData(prev => ({
                 ...prev,
-                imageurl: image_url || prev.imageurl,
+                image_url: image_url || prev.image_url,
                 // Auto-fill only when user hasn't edited yet (or field is empty).
                 message: (prev.message || "").trim() === "" || !didUserEditMessage ? (issue || prev.message) : prev.message,
                 category: (prev.category || "").trim() === "" || !didUserEditCategory ? (category || prev.category) : prev.category,
@@ -406,30 +406,50 @@ function RaiseTicket() {
                         <h3 className="result-title" style={{ margin: 0, fontSize: '16px', color: 'var(--color-text)' }}>Request Submitted Successfully</h3>
                     </div>
 
-                    <div className="result-grid" style={{ gridTemplateColumns: '1fr 1fr', rowGap: '20px' }}>
-                        <div className="result-item">
-                            <span className="result-label">Assigned Category</span>
-                            <span className="result-value"><span className="badge">{response.category}</span></span>
-                        </div>
+                    <div style={{ display: 'flex', gap: '24px', alignItems: 'flex-start', flexWrap: 'wrap' }}>
+                        <div className="result-grid" style={{ gridTemplateColumns: '1fr 1fr', rowGap: '20px', flex: '1 1 280px' }}>
+                            <div className="result-item">
+                                <span className="result-label">Assigned Category</span>
+                                <span className="result-value"><span className="badge">{response.category}</span></span>
+                            </div>
 
-                        <div className="result-item">
-                            <span className="result-label">Determined Priority</span>
-                            <span className="result-value">
-                                <span className={`badge priority-badge ${response.priority?.toLowerCase() || 'unassigned'}`}>
-                                    {response.priority}
+                            <div className="result-item">
+                                <span className="result-label">Determined Priority</span>
+                                <span className="result-value">
+                                    <span className={`badge priority-badge ${response.priority?.toLowerCase() || 'unassigned'}`}>
+                                        {response.priority}
+                                    </span>
                                 </span>
-                            </span>
+                            </div>
+
+                            <div className="result-item full">
+                                <span className="result-label">Final Title</span>
+                                <span className="result-value" style={{ lineHeight: '1.5' }}>{response.summary}</span>
+                            </div>
+
+                            <div className="result-item full">
+                                <span className="result-label">Tracking ID</span>
+                                <span className="result-value" style={{ fontFamily: 'monospace', color: 'var(--color-text-subtle)', background: 'var(--color-bg-sunken)', padding: '4px 8px', borderRadius: '4px', display: 'inline-block' }}>{response.inserted_id}</span>
+                            </div>
                         </div>
 
-                        <div className="result-item full">
-                            <span className="result-label">Final Title</span>
-                            <span className="result-value" style={{ lineHeight: '1.5' }}>{response.summary}</span>
-                        </div>
-
-                        <div className="result-item full">
-                            <span className="result-label">Tracking ID</span>
-                            <span className="result-value" style={{ fontFamily: 'monospace', color: 'var(--color-text-subtle)', background: 'var(--color-bg-sunken)', padding: '4px 8px', borderRadius: '4px', display: 'inline-block' }}>{response.inserted_id}</span>
-                        </div>
+                        {imagePreview && (
+                            <div style={{ flex: '0 0 auto' }}>
+                                <span className="result-label" style={{ display: 'block', marginBottom: '8px', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--color-text-subtle)' }}>Attached Image</span>
+                                <img
+                                    src={imagePreview}
+                                    alt="Submitted issue"
+                                    style={{
+                                        width: '160px',
+                                        height: '120px',
+                                        objectFit: 'cover',
+                                        borderRadius: '8px',
+                                        border: '1px solid var(--color-border)',
+                                        display: 'block'
+                                    }}
+                                />
+                            </div>
+                        )}
                     </div>
 
                     <div style={{ marginTop: '24px', display: 'flex', justifyContent: 'center' }}>
@@ -445,7 +465,7 @@ function RaiseTicket() {
                                     message: "",
                                     category: "",
                                     priority: "",
-                                    imageurl: ""
+                                    image_url: ""
                                 });
                                 setSelectedImage(null);
                                 setImagePreview(null);

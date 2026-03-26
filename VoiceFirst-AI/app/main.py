@@ -60,19 +60,19 @@ class TicketSubmitRequest(BaseModel):
     category: Optional[str] = None
     priority: Optional[str] = None
     summary: Optional[str] = None
-    imageurl: Optional[str] = None
+    image_url: Optional[str] = None
 
 
 
 class TicketRequest(BaseModel):
-    company_id : str
-    branch_id : str
-    section_id : str
-    issue_type_id : str
-    message : str
+    company_id: str
+    branch_id: str
+    section_id: str
+    issue_type_id: str
+    message: str
     category: Optional[str] = None
     priority: Optional[str] = None
-    imageurl: Optional[str] = None
+    image_url: Optional[str] = None
 
 # We can use the same secret key from auth_service, or define a new one specifically for QR tokens.
 # Using a fixed secret for this example. In production, this should come from env variables.
@@ -803,6 +803,7 @@ def submit_ticket(request: TicketSubmitRequest):
     final_category = request.category
     final_priority = request.priority
     final_summary = request.summary
+    ai_result = {}
 
     if not final_category or not final_priority or not final_summary:
         ai_result = classify_with_ai(request.message)
@@ -817,19 +818,16 @@ def submit_ticket(request: TicketSubmitRequest):
             if not final_summary:
                 final_summary = ai_result.get("summary", str(request.message)[:50] + "...")
         else:
-            # Fallback
             final_category = final_category or "General Complaint"
             final_priority = final_priority or "Medium"
             final_summary = final_summary or str(request.message)[:50] + "..."
 
+    # Ensure all values are set even when image analysis provided them
+    final_category = final_category or "General Complaint"
+    final_priority = final_priority or "Medium"
+    final_summary = final_summary or str(request.message)[:50] + "..."
+
     # 3. Storage
-    summary = ai_result.get("summary") if isinstance(ai_result, dict) else None
-    if not summary:
-        # For image-based tickets, default summary to the extracted issue keyword.
-        summary = request.message.strip() if isinstance(request.message, str) else "NO summary provided"
-
-
-
     ticket_data = {
         "company_id": request.company_id,
         "branch_id": request.branch_id,
@@ -839,15 +837,15 @@ def submit_ticket(request: TicketSubmitRequest):
         "category": final_category,
         "priority": final_priority,
         "summary": final_summary,
-        "status": "Open",   
+        "status": "Open",
         "created_at": datetime.utcnow()
     }
 
-    if request.imageurl:
-        ticket_data["imageurl"] = request.imageurl
+    if request.image_url:
+        ticket_data["image_url"] = request.image_url
 
     result = tickets_collection.insert_one(ticket_data)
-    
+
     return {
         "status": "success",
         "inserted_id": str(result.inserted_id),

@@ -7,6 +7,7 @@ function TicketList() {
     const { user } = useAuth();
     const [tickets, setTickets] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [lightboxImage, setLightboxImage] = useState(null);
 
     // Filter states
     const [searchQuery, setSearchQuery] = useState("");
@@ -170,6 +171,7 @@ function TicketList() {
                                 <th>Category</th>
                                 <th>Status</th>
                                 <th>Priority</th>
+                                <th>Image</th>
                                 <th>Created</th>
                             </tr>
                         </thead>
@@ -182,6 +184,7 @@ function TicketList() {
                                     <td style={{ padding: '8px 16px' }}><div className="skeleton skeleton-text" style={{ width: '90px', margin: 0, height: '14px' }}></div></td>
                                     <td style={{ padding: '8px 16px' }}><div className="skeleton skeleton-text" style={{ width: '70px', margin: 0, height: '20px', borderRadius: '4px' }}></div></td>
                                     <td style={{ padding: '8px 16px' }}><div className="skeleton skeleton-text" style={{ width: '60px', margin: 0, height: '20px', borderRadius: '4px' }}></div></td>
+                                    <td style={{ padding: '8px 16px' }}><div className="skeleton skeleton-text" style={{ width: '44px', height: '36px', margin: 0, borderRadius: '4px' }}></div></td>
                                     <td style={{ padding: '8px 16px' }}><div className="skeleton skeleton-text" style={{ width: '70px', margin: 0, height: '14px' }}></div></td>
                                 </tr>
                             ))}
@@ -199,6 +202,7 @@ function TicketList() {
                                 <th>Category</th>
                                 <th>Status</th>
                                 <th>Priority</th>
+                                <th>Image</th>
                                 <th>Created</th>
                             </tr>
                         </thead>
@@ -224,6 +228,27 @@ function TicketList() {
                                                 {ticket.priority || "Unassigned"}
                                             </span>
                                         </td>
+                                        <td style={{ padding: '10px 16px' }}>
+                                            {ticket.image_url ? (
+                                                <img
+                                                    src={ticket.image_url}
+                                                    alt="ticket"
+                                                    title="Click to enlarge"
+                                                    onClick={() => setLightboxImage(ticket.image_url)}
+                                                    style={{
+                                                        width: '48px',
+                                                        height: '36px',
+                                                        objectFit: 'cover',
+                                                        borderRadius: '4px',
+                                                        border: '1px solid var(--color-border)',
+                                                        cursor: 'zoom-in',
+                                                        display: 'block'
+                                                    }}
+                                                />
+                                            ) : (
+                                                <span style={{ color: 'var(--color-text-subtle)', fontSize: '12px' }}>—</span>
+                                            )}
+                                        </td>
                                         <td className="date-col" style={{ padding: '10px 16px', color: 'var(--color-text-subtle)' }}>
                                             {new Date(ticket.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
                                         </td>
@@ -231,7 +256,7 @@ function TicketList() {
                                 ))
                             ) : (
                                 <tr>
-                                    <td colSpan="7">
+                                    <td colSpan="8">
                                         <div className="state-container" style={{ margin: '48px auto', border: 'none', maxWidth: '400px' }}>
                                             <div style={{ background: 'var(--color-bg-sunken)', width: '64px', height: '64px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px' }}>
                                                 <Inbox className="state-icon" size={32} strokeWidth={1.5} style={{ margin: 0, color: 'var(--color-text-subtle)' }} />
@@ -259,6 +284,71 @@ function TicketList() {
                             )}
                         </tbody>
                     </table>
+                </div>
+            )}
+
+            {/* Image dialog popup */}
+            {lightboxImage && (
+                <div
+                    onClick={() => setLightboxImage(null)}
+                    style={{
+                        position: 'fixed',
+                        inset: 0,
+                        background: 'rgba(0,0,0,0.55)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        zIndex: 9999
+                    }}
+                >
+                    <div
+                        onClick={e => e.stopPropagation()}
+                        style={{
+                            background: 'var(--color-bg-surface, #1e293b)',
+                            borderRadius: '12px',
+                            boxShadow: '0 8px 40px rgba(0,0,0,0.45)',
+                            padding: '16px',
+                            maxWidth: '480px',
+                            width: '90%',
+                            position: 'relative'
+                        }}
+                    >
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+                            <span style={{ fontSize: '13px', fontWeight: '600', color: 'var(--color-text, #f1f5f9)' }}>Issue Image</span>
+                            <button
+                                onClick={() => setLightboxImage(null)}
+                                style={{
+                                    background: 'var(--color-bg-sunken, rgba(255,255,255,0.08))',
+                                    border: 'none',
+                                    borderRadius: '50%',
+                                    width: '28px',
+                                    height: '28px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    color: 'var(--color-text-subtle, #94a3b8)',
+                                    cursor: 'pointer',
+                                    fontSize: '16px',
+                                    lineHeight: 1
+                                }}
+                                aria-label="Close"
+                            >
+                                ×
+                            </button>
+                        </div>
+                        <img
+                            src={lightboxImage}
+                            alt="Issue"
+                            style={{
+                                width: '100%',
+                                maxHeight: '340px',
+                                objectFit: 'contain',
+                                borderRadius: '8px',
+                                border: '1px solid var(--color-border, rgba(255,255,255,0.1))',
+                                display: 'block'
+                            }}
+                        />
+                    </div>
                 </div>
             )}
         </div>

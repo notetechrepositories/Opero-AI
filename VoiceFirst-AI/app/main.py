@@ -5,6 +5,9 @@ from fastapi.staticfiles import StaticFiles
 from itsdangerous import URLSafeSerializer, BadSignature
 import os
 import json
+import base64
+import re
+import uuid
 from pydantic import BaseModel
 from app.db.database import (
     tickets_collection,
@@ -14,12 +17,12 @@ from app.db.database import (
     issue_types_collection
 )
 from datetime import datetime, timedelta
-from app.services.ai_service import classify_with_ai, generate_insights
+from app.services.ai_service import classify_with_ai, generate_insights, analyze_image_with_llava
 from app.services.auth_service import verify_password, create_access_token, get_current_active_user, ACCESS_TOKEN_EXPIRE_MINUTES
 from pymongo import DESCENDING, ASCENDING
 from fastapi.middleware.cors import CORSMiddleware
 from typing import Optional, List, Dict, Any
-from fastapi import Request
+from fastapi import Request, File, UploadFile
 from app.services.whatsapp_service import send_whatsapp_message
 import secrets
 import hashlib
@@ -57,6 +60,19 @@ class TicketSubmitRequest(BaseModel):
     category: Optional[str] = None
     priority: Optional[str] = None
     summary: Optional[str] = None
+    image_url: Optional[str] = None
+
+
+
+class TicketRequest(BaseModel):
+    company_id: str
+    branch_id: str
+    section_id: str
+    issue_type_id: str
+    message: str
+    category: Optional[str] = None
+    priority: Optional[str] = None
+    image_url: Optional[str] = None
 
 # We can use the same secret key from auth_service, or define a new one specifically for QR tokens.
 # Using a fixed secret for this example. In production, this should come from env variables.
@@ -115,22 +131,54 @@ ALLOWED_CATEGORIES = [
     "Facilities",
     "Appointment Issue",
     "General Complaint",
-    "Feedback / Suggestion"
+    "Feedback / Suggestion",
+    "Other",
 ]
 
 ALLOWED_PRIORITIES = ["High", "Medium", "Low"]
 
+def _normalize_for_match(value: str) -> str:
+    value = (value or "").strip().lower()
+    value = re.sub(r"\s*/\s*", "/", value)  # normalize "Delay / Waiting Time"
+    value = re.sub(r"\s+", " ", value)
+    return value
+
+def _map_to_allowed(value: Optional[str], allowed: List[str]) -> Optional[str]:
+    if value is None:
+        return None
+    candidate = _normalize_for_match(value)
+    for a in allowed:
+        if _normalize_for_match(a) == candidate:
+            return a
+    return None
+
 @app.post("/api/auth/login")
 async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
     from app.db.database import users_collection
+    # Trim whitespace from the email just in case the frontend sends a trailing space
+    username = form_data.username.strip().lower() if form_data.username else form_data.username
+    print(f"Login attempt for email: '{username}' with password length: {len(form_data.password)}")
+    
     # OAuth2PasswordRequestForm strictly uses "username" as the field name, but we will pass an email into it from the frontend
-    user = users_collection.find_one({"email": form_data.username})
-    if not user or not verify_password(form_data.password, user["hashed_password"]):
+    user = users_collection.find_one({"email": username})
+    
+    if not user:
+        print(f"User not found for email: '{username}'")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
+        
+    if not verify_password(form_data.password, user["hashed_password"]):
+        print(f"Password mismatch for user: '{username}'")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect email or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+        
+    print(f"Login successful for user: '{username}'")
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
         data={"sub": user["email"], "role": user.get("role"), "company_id": user.get("company_id")}, expires_delta=access_token_expires
@@ -635,6 +683,48 @@ def get_analytics(
     }
 
 
+@app.post("/api/analyze-image")
+async def analyze_image(file: UploadFile = File(...)):
+    """
+    Receives an image, converts to base64, and calls the vision model for analysis.
+    """
+    contents = await file.read()
+    filename = (file.filename or "").strip()
+    ext = ""
+    if "." in filename:
+        ext = filename.rsplit(".", 1)[-1].lower()
+
+    content_type = (file.content_type or "").lower()
+    # If extension is missing/unusable, fall back to content-type.
+    if ext not in {"jpg", "jpeg", "png"}:
+        if content_type in {"image/jpeg", "image/jpg"}:
+            ext = "jpg"
+        elif content_type == "image/png":
+            ext = "png"
+
+    if ext not in {"jpg", "jpeg", "png"}:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid image type. Upload JPG or PNG. (filename='{filename}', content_type='{content_type}')",
+        )
+
+    uploads_images_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "uploads", "images"))
+    os.makedirs(uploads_images_dir, exist_ok=True)
+
+    stored_filename = f"{uuid.uuid4().hex}.{ext if ext != 'jpeg' else 'jpg'}"
+    stored_path = os.path.join(uploads_images_dir, stored_filename)
+
+    with open(stored_path, "wb") as f:
+        f.write(contents)
+
+    image_base64 = base64.b64encode(contents).decode("utf-8")
+    analysis = analyze_image_with_llava(image_base64)
+
+    # Frontend will use this to show/store on the ticket record.
+    image_url = f"/uploads/images/{stored_filename}"
+    return {**analysis, "image_url": image_url}
+
+
 @app.post("/api/analyze-ticket")
 def analyze_ticket(request: TicketAnalyzeRequest):
     # 1. Validate Hierarchy quickly
@@ -652,14 +742,34 @@ def analyze_ticket(request: TicketAnalyzeRequest):
 
     if "error" in ai_result:
         return {"error": "AI classification failed", "details": ai_result["error"]}
+    # 4. Validate Issue Type belongs to Section
+    if request.issue_type_id:
+        issue_type = issue_types_collection.find_one({
+            "$or": [{"issue_type_id": request.issue_type_id}, {"issue_type_code": request.issue_type_id}],
+            "section_code": request.section_id
+        })
+        if not issue_type:
+            raise HTTPException(status_code=400, detail=f"Issue Type '{request.issue_type_id}' does not belong to Section '{request.section_id}' or does not exist.")
+
+    # If image analysis already provided category/priority, skip re-classifying.
+    ai_result = {}
+    if not request.category or not request.priority:
+        ai_result = classify_with_ai(request.message)
+        if "error" in ai_result:
+            return {"error": "AI classification failed", "details": ai_result["error"]}
 
     category = ai_result.get("category", "General Complaint")
     priority = ai_result.get("priority", "Medium")
     message_str = str(request.message)
     summary = ai_result.get("summary", message_str[:50] + "...")
+    category_raw = request.category or ai_result.get("category", "General Complaint")
+    priority_raw = request.priority or ai_result.get("priority", "Medium")
 
     category = category if category in ALLOWED_CATEGORIES else "General Complaint"
     priority = priority if priority in ALLOWED_PRIORITIES else "Medium"
+    # Clamp values to allowed lists (case-insensitive).
+    category = _map_to_allowed(category_raw, ALLOWED_CATEGORIES) or "General Complaint"
+    priority = _map_to_allowed(priority_raw, ALLOWED_PRIORITIES) or "Medium"
 
     return {
         "status": "success",
@@ -693,6 +803,7 @@ def submit_ticket(request: TicketSubmitRequest):
     final_category = request.category
     final_priority = request.priority
     final_summary = request.summary
+    ai_result = {}
 
     if not final_category or not final_priority or not final_summary:
         ai_result = classify_with_ai(request.message)
@@ -707,10 +818,14 @@ def submit_ticket(request: TicketSubmitRequest):
             if not final_summary:
                 final_summary = ai_result.get("summary", str(request.message)[:50] + "...")
         else:
-            # Fallback
             final_category = final_category or "General Complaint"
             final_priority = final_priority or "Medium"
             final_summary = final_summary or str(request.message)[:50] + "..."
+
+    # Ensure all values are set even when image analysis provided them
+    final_category = final_category or "General Complaint"
+    final_priority = final_priority or "Medium"
+    final_summary = final_summary or str(request.message)[:50] + "..."
 
     # 3. Storage
     ticket_data = {
@@ -722,12 +837,15 @@ def submit_ticket(request: TicketSubmitRequest):
         "category": final_category,
         "priority": final_priority,
         "summary": final_summary,
-        "status": "Open",   
+        "status": "Open",
         "created_at": datetime.utcnow()
     }
 
+    if request.image_url:
+        ticket_data["image_url"] = request.image_url
+
     result = tickets_collection.insert_one(ticket_data)
-    
+
     return {
         "status": "success",
         "inserted_id": str(result.inserted_id),
@@ -841,6 +959,9 @@ async def handle_whatsapp_webhook(request: Request):
 
 
 frontend_dist = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "..", "vf-ai-frontend", "frontend", "dist")
+uploads_images_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "uploads", "images"))
+os.makedirs(uploads_images_dir, exist_ok=True)
+app.mount("/uploads/images", StaticFiles(directory=uploads_images_dir), name="uploads-images")
 if os.path.exists(frontend_dist):
     app.mount("/", StaticFiles(directory=frontend_dist, html=True), name="frontend")
 else:

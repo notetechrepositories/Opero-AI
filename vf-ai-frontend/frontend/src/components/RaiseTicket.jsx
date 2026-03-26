@@ -16,11 +16,24 @@ function RaiseTicket() {
         branch_id: "",
         section_id: "",
         issue_type_id: "",
-        message: ""
+        message: "",
+        category: "",
+        priority: "",
+        image_url: ""
     });
 
     const [response, setResponse] = useState(null);
     const [loading, setLoading] = useState(false);
+
+    // New states for image and AI analysis
+    const [selectedImage, setSelectedImage] = useState(null);
+    const [imagePreview, setImagePreview] = useState(null);
+    const [isAnalyzing, setIsAnalyzing] = useState(false);
+    const [aiError, setAiError] = useState(null);
+    const [isDragOver, setIsDragOver] = useState(false);
+    const [didUserEditMessage, setDidUserEditMessage] = useState(false);
+    const [didUserEditCategory, setDidUserEditCategory] = useState(false);
+    const [didUserEditPriority, setDidUserEditPriority] = useState(false);
 
     // Cascading dropdown states
     const [companies, setCompanies] = useState([]);
@@ -113,6 +126,10 @@ function RaiseTicket() {
     const handleChange = (e) => {
         const { name, value } = e.target;
 
+        if (name === "message") setDidUserEditMessage(true);
+        if (name === "category") setDidUserEditCategory(true);
+        if (name === "priority") setDidUserEditPriority(true);
+
         setFormData((prev) => {
             let updatedForm = { ...prev, [name]: value };
 
@@ -131,24 +148,64 @@ function RaiseTicket() {
         });
     };
 
+    const processImageFile = async (file) => {
+        if (!file) return;
+
+        if (!["image/jpeg", "image/png"].includes(file.type)) {
+            alert("Please upload only JPG or PNG images.");
+            return;
+        }
+
+        setSelectedImage(file);
+        setImagePreview(URL.createObjectURL(file));
+        setAiError(null);
+        setIsAnalyzing(true);
+
+        try {
+            const formDataPayload = new FormData();
+            formDataPayload.append("file", file);
+
+            const res = await axios.post("/api/analyze-image", formDataPayload, {
+                headers: { "Content-Type": "multipart/form-data" }
+            });
+
+            const { issue, category, priority, image_url } = res.data || {};
+
+            setFormData(prev => ({
+                ...prev,
+                image_url: image_url || prev.image_url,
+                // Auto-fill only when user hasn't edited yet (or field is empty).
+                message: (prev.message || "").trim() === "" || !didUserEditMessage ? (issue || prev.message) : prev.message,
+                category: (prev.category || "").trim() === "" || !didUserEditCategory ? (category || prev.category) : prev.category,
+                priority: (prev.priority || "").trim() === "" || !didUserEditPriority ? (priority || prev.priority) : prev.priority,
+            }));
+        } catch (err) {
+            console.error("AI Analysis failed", err);
+            const detail = err?.response?.data?.detail;
+            setAiError(detail ? `AI analysis failed: ${detail}` : "AI analysis failed. Please fill the fields manually.");
+        } finally {
+            setIsAnalyzing(false);
+        }
+    };
+
+    const handleImageChange = (e) => {
+        const file = e.target.files && e.target.files[0];
+        processImageFile(file);
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         setLoading(true);
 
         try {
-            // We now send the message, company, and branch directly.
-            // The backend will handle the AI analysis and storage in one atomic operation.
             const res = await axios.post("/api/submit-ticket", formData, {
                 headers: { "Content-Type": "application/json" }
             });
-
-            setTimeout(() => {
-                setResponse(res.data);
-                setLoading(false);
-            }, 1000); // Slight delay to show the "Analyzing..." state
+            setResponse(res.data);
         } catch (error) {
             console.error(error);
             alert("Error submitting request. Please try again.");
+        } finally {
             setLoading(false);
         }
     };
@@ -214,21 +271,6 @@ function RaiseTicket() {
                             </div>
                         </div>
 
-                        <div className="form-group" style={{ margin: 0 }}>
-                            <label className="form-label" style={{ fontWeight: '600', color: 'var(--color-text)', display: 'flex', justifyContent: 'space-between' }}>
-                                <span>Description <span style={{ color: 'var(--color-danger)' }}>*</span></span>
-                            </label>
-                            <textarea
-                                name="message"
-                                className="form-control"
-                                placeholder="What do you need help with? Please provide as much detail as possible..."
-                                value={formData.message}
-                                onChange={handleChange}
-                                required
-                                disabled={loading}
-                                style={{ minHeight: '120px', resize: 'vertical' }}
-                            />
-                        </div>
                     </div>
 
                     {/* Secondary/Optional Group */}
@@ -275,8 +317,73 @@ function RaiseTicket() {
                         </div>
                     </div>
 
+                    {/* Image Upload + AI Analysis */}
+                    <div style={{ background: 'var(--color-bg-sunken)', padding: '24px', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-border)' }}>
+                        <h4 style={{ margin: '0 0 16px 0', fontSize: '13px', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--color-text-subtle)' }}>Image Analysis</h4>
+                        <div
+                            className="upload-zone"
+                            style={{
+                                border: isDragOver ? "2px dashed #3b82f6" : "2px dashed rgba(148,163,184,0.6)",
+                                borderRadius: "12px",
+                                padding: "14px",
+                                background: "rgba(15,23,42,0.1)",
+                                transition: "border-color 0.15s ease"
+                            }}
+                            onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
+                            onDragLeave={(e) => { e.preventDefault(); setIsDragOver(false); }}
+                            onDrop={(e) => {
+                                e.preventDefault();
+                                setIsDragOver(false);
+                                const file = e.dataTransfer.files && e.dataTransfer.files[0];
+                                if (file) processImageFile(file);
+                            }}
+                        >
+                            <input
+                                type="file"
+                                accept="image/png, image/jpeg"
+                                onChange={handleImageChange}
+                                disabled={isAnalyzing || loading}
+                                style={{ width: "100%" }}
+                            />
+
+                            {isAnalyzing && (
+                                <div style={{ display: "flex", alignItems: "center", gap: "10px", marginTop: "10px" }}>
+                                    <div className="spinner"></div>
+                                    <span>Analyzing Image...</span>
+                                </div>
+                            )}
+
+                            {aiError && <p style={{ color: "#EF4444", marginTop: "10px" }}>{aiError}</p>}
+
+                            {imagePreview && (
+                                <img
+                                    src={imagePreview}
+                                    alt="Preview"
+                                    style={{ marginTop: "10px", maxWidth: "220px", borderRadius: "8px" }}
+                                />
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Description at end of form */}
+                    <div className="form-group" style={{ margin: 0 }}>
+                        <label className="form-label" style={{ fontWeight: '600', color: 'var(--color-text)', display: 'flex', justifyContent: 'space-between' }}>
+                            <span>Description <span style={{ color: 'var(--color-danger)' }}>*</span></span>
+                        </label>
+                        <textarea
+                            name="message"
+                            className="form-control"
+                            placeholder="What do you need help with? Please provide as much detail as possible..."
+                            value={formData.message}
+                            onChange={handleChange}
+                            required
+                            disabled={loading}
+                            style={{ minHeight: '120px', resize: 'vertical' }}
+                        />
+                    </div>
+
                     <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '8px', borderTop: '1px solid var(--color-border)', paddingTop: '24px' }}>
-                        <button type="submit" className="btn-primary btn-lg" disabled={loading} style={{ minWidth: '200px' }}>
+                        <button type="submit" className="btn-primary btn-lg" disabled={loading || isAnalyzing} style={{ minWidth: '200px' }}>
                             {loading ? (
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}>
                                     <div className="spinner" style={{ width: '16px', height: '16px', borderWidth: '2px', borderTopColor: 'currentColor', borderColor: 'rgba(255,255,255,0.3)' }}></div>
@@ -299,30 +406,50 @@ function RaiseTicket() {
                         <h3 className="result-title" style={{ margin: 0, fontSize: '16px', color: 'var(--color-text)' }}>Request Submitted Successfully</h3>
                     </div>
 
-                    <div className="result-grid" style={{ gridTemplateColumns: '1fr 1fr', rowGap: '20px' }}>
-                        <div className="result-item">
-                            <span className="result-label">Assigned Category</span>
-                            <span className="result-value"><span className="badge">{response.category}</span></span>
-                        </div>
+                    <div style={{ display: 'flex', gap: '24px', alignItems: 'flex-start', flexWrap: 'wrap' }}>
+                        <div className="result-grid" style={{ gridTemplateColumns: '1fr 1fr', rowGap: '20px', flex: '1 1 280px' }}>
+                            <div className="result-item">
+                                <span className="result-label">Assigned Category</span>
+                                <span className="result-value"><span className="badge">{response.category}</span></span>
+                            </div>
 
-                        <div className="result-item">
-                            <span className="result-label">Determined Priority</span>
-                            <span className="result-value">
-                                <span className={`badge priority-badge ${response.priority?.toLowerCase() || 'unassigned'}`}>
-                                    {response.priority}
+                            <div className="result-item">
+                                <span className="result-label">Determined Priority</span>
+                                <span className="result-value">
+                                    <span className={`badge priority-badge ${response.priority?.toLowerCase() || 'unassigned'}`}>
+                                        {response.priority}
+                                    </span>
                                 </span>
-                            </span>
+                            </div>
+
+                            <div className="result-item full">
+                                <span className="result-label">Final Title</span>
+                                <span className="result-value" style={{ lineHeight: '1.5' }}>{response.summary}</span>
+                            </div>
+
+                            <div className="result-item full">
+                                <span className="result-label">Tracking ID</span>
+                                <span className="result-value" style={{ fontFamily: 'monospace', color: 'var(--color-text-subtle)', background: 'var(--color-bg-sunken)', padding: '4px 8px', borderRadius: '4px', display: 'inline-block' }}>{response.inserted_id}</span>
+                            </div>
                         </div>
 
-                        <div className="result-item full">
-                            <span className="result-label">Final Title</span>
-                            <span className="result-value" style={{ lineHeight: '1.5' }}>{response.summary}</span>
-                        </div>
-
-                        <div className="result-item full">
-                            <span className="result-label">Tracking ID</span>
-                            <span className="result-value" style={{ fontFamily: 'monospace', color: 'var(--color-text-subtle)', background: 'var(--color-bg-sunken)', padding: '4px 8px', borderRadius: '4px', display: 'inline-block' }}>{response.inserted_id}</span>
-                        </div>
+                        {imagePreview && (
+                            <div style={{ flex: '0 0 auto' }}>
+                                <span className="result-label" style={{ display: 'block', marginBottom: '8px', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--color-text-subtle)' }}>Attached Image</span>
+                                <img
+                                    src={imagePreview}
+                                    alt="Submitted issue"
+                                    style={{
+                                        width: '160px',
+                                        height: '120px',
+                                        objectFit: 'cover',
+                                        borderRadius: '8px',
+                                        border: '1px solid var(--color-border)',
+                                        display: 'block'
+                                    }}
+                                />
+                            </div>
+                        )}
                     </div>
 
                     <div style={{ marginTop: '24px', display: 'flex', justifyContent: 'center' }}>
@@ -338,8 +465,14 @@ function RaiseTicket() {
                                     message: "",
                                     category: "",
                                     priority: "",
-                                    summary: ""
+                                    image_url: ""
                                 });
+                                setSelectedImage(null);
+                                setImagePreview(null);
+                                setAiError(null);
+                                setDidUserEditMessage(false);
+                                setDidUserEditCategory(false);
+                                setDidUserEditPriority(false);
                                 setResponse(null);
                             }}
                             style={{ height: '36px', padding: '0 20px', fontSize: '14px' }}

@@ -1,0 +1,208 @@
+/* ── Page wrapper ─────────────────────────────────────── */
+.rt-page {
+    max-width: 1000px;
+}
+
+/* ── Form layout ──────────────────────────────────────── */
+.rt-form {
+    display: flex;
+    flex-direction: column;
+    gap: 32px;
+}
+
+.rt-primary-group {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.rt-grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+}
+
+.rt-form-group {
+    margin: 0;
+}
+
+.rt-select {
+    height: 40px;
+}
+
+.rt-select--surface {
+    height: 40px;
+    background-color: var(--color-bg-surface);
+}
+
+/* ── Section card (optional routing / image analysis) ─── */
+.rt-card {
+    background: var(--color-bg-sunken);
+    padding: 24px;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--color-border);
+}
+
+.rt-card-title {
+    margin: 0 0 16px 0;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--color-text-subtle);
+}
+
+/* ── Upload zone ──────────────────────────────────────── */
+.rt-upload-zone {
+    border: 2px dashed rgba(148, 163, 184, 0.6);
+    border-radius: 12px;
+    padding: 14px;
+    background: rgba(15, 23, 42, 0.1);
+    transition: border-color 0.15s ease;
+}
+
+.rt-upload-zone--drag {
+    border-color: #3b82f6;
+}
+
+.rt-upload-input {
+    width: 100%;
+}
+
+.rt-analyzing-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 10px;
+}
+
+.rt-ai-error {
+    color: #ef4444;
+    margin-top: 10px;
+}
+
+.rt-image-preview {
+    margin-top: 10px;
+    max-width: 220px;
+    border-radius: 8px;
+}
+
+/* ── Description textarea ─────────────────────────────── */
+.rt-description-group {
+    margin: 0;
+}
+
+.rt-description-label {
+    font-weight: 600;
+    color: var(--color-text);
+    display: flex;
+    justify-content: space-between;
+}
+
+.rt-textarea {
+    min-height: 120px;
+    resize: vertical;
+}
+
+/* ── Submit row ───────────────────────────────────────── */
+.rt-submit-row {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 8px;
+    border-top: 1px solid var(--color-border);
+    padding-top: 24px;
+}
+
+.rt-submit-btn {
+    min-width: 200px;
+}
+
+.rt-spinner-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    justify-content: center;
+}
+
+/* ── Result / success card ────────────────────────────── */
+.rt-result-box {
+    background: var(--color-bg-surface);
+    border: 1px solid rgba(0, 135, 90, 0.2);
+    padding: 32px;
+    border-radius: var(--radius-md);
+}
+
+.rt-result-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 16px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.rt-success-icon {
+    background: var(--color-success-bg);
+    color: var(--color-success);
+    border-radius: 50%;
+    padding: 4px;
+    display: flex;
+}
+
+.rt-result-title {
+    margin: 0;
+    font-size: 16px;
+    color: var(--color-text);
+}
+
+.rt-result-body {
+    display: flex;
+    gap: 24px;
+    align-items: flex-start;
+    flex-wrap: wrap;
+}
+
+.rt-result-grid {
+    grid-template-columns: 1fr 1fr;
+    row-gap: 20px;
+    flex: 1 1 280px;
+}
+
+.rt-attached-label {
+    display: block;
+    margin-bottom: 8px;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--color-text-subtle);
+}
+
+.rt-attached-image {
+    width: 160px;
+    height: 120px;
+    object-fit: cover;
+    border-radius: 8px;
+    border: 1px solid var(--color-border);
+    display: block;
+}
+
+.rt-tracking-id {
+    font-family: monospace;
+    color: var(--color-text-subtle);
+    background: var(--color-bg-sunken);
+    padding: 4px 8px;
+    border-radius: 4px;
+    display: inline-block;
+}
+
+/* ── Reset row ────────────────────────────────────────── */
+.rt-reset-row {
+    margin-top: 24px;
+    display: flex;
+    justify-content: center;
+}
+
+.rt-reset-btn {
+    height: 36px;
+    padding: 0 20px;
+    font-size: 14px;
+}

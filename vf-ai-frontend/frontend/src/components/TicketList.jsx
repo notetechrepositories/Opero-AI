@@ -213,7 +213,7 @@ function TicketList() {
                                         <td className="ticket-id" title={ticket._id} style={{ padding: '10px 16px', color: 'var(--color-primary)', fontWeight: '500' }}>
                                             {ticket._id.substring(0, 8).toUpperCase()}
                                         </td>
-                                        <td style={{ padding: '10px 16px', maxWidth: '300px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: '500' }}>
+                                        <td style={{ padding: '10px 16px', maxWidth: '300px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'w   rap', fontWeight: '500' }}>
                                             {ticket.summary || ticket.message || "No Summary"}
                                         </td>
                                         <td style={{ padding: '10px 16px', color: 'var(--color-text-subtle)' }}>{ticket.company_id}</td>

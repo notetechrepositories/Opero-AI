@@ -365,7 +365,7 @@ function RaiseTicket() {
 
                             <div className="result-item full">
                                 <span className="result-label">Final Title</span>
-                                <span className="result-value" style={{ lineHeight: 1.5 }}>{response.summary}</span>
+                                <span className="result-value">{response.summary}</span>
                             </div>
 
                             <div className="result-item full">

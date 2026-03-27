@@ -114,33 +114,72 @@ def analyze_image_with_llava(image_base64: str):
         "Billing Issue",
         "Delay / Waiting Time",
         "Maintenance",
-        "Facilities",
+        "Facilities", 
         "Appointment Issue",
         "General Complaint",
         "Feedback / Suggestion",
         "Other",
     ]
     allowed_priorities = ["High", "Medium", "Low"]
-    fallback = {"issue": "Unknown", "category": "Other", "priority": "Low"}
+    fallback = {"issue": "An issue was detected and requires attention from the staff.", "category": "Other", "priority": "Low"}
 
     prompt = f"""
-You are an IT issue classification system.
+You are an AI assistant that analyzes images and describes problems clearly for employees and managers.
 
-Analyze the provided image and identify the main IT issue shown.
+Your goal is to identify the issue in the image and explain it in a simple, professional, and actionable way.
 
-Return ONLY valid JSON and ONLY that JSON (no extra text), with this exact schema:
+----------------------------------------
+INSTRUCTIONS:
+- Look at the image carefully
+- Identify the main problem
+- Describe it in ONE clear sentence
+
+----------------------------------------
+RULES:
+- Write ONLY one sentence
+- Use simple and professional English
+- Keep it short (10-18 words)
+- Clearly explain what is wrong
+- Mention the object (table, plate, floor, machine, laptop, etc.)
+- Make it actionable (so staff knows what to fix)
+
+----------------------------------------
+IMPORTANT:
+- Do NOT use short phrases like "Dirty plates"
+- Do NOT use technical or complex words
+- Do NOT write multiple sentences
+- Do NOT include any explanation outside JSON
+
+----------------------------------------
+EXAMPLES:
+GOOD:
+- "The table is messy with leftover food and unclean plates."
+- "The floor is wet and needs to be cleaned to avoid accidents."
+- "The laptop screen is broken and not working properly."
+- "The room is dirty and requires immediate cleaning."
+
+BAD:
+- "Dirty plates"
+- "Cleanliness issue detected"
+- "Problem observed in the image"
+
+----------------------------------------
+CATEGORIES (choose EXACTLY one):
+{', '.join(allowed_categories)}
+
+----------------------------------------
+PRIORITY RULES:
+- High: hygiene issues, safety risks, or serious problems
+- Medium: operational or service issues
+- Low: minor issues or suggestions
+
+----------------------------------------
+OUTPUT FORMAT (RETURN ONLY JSON, no extra text):
 {{
-  "issue": "<short issue title in simple words, 1-6 words>",
-  "category": "<one of: {', '.join(allowed_categories)}>",
-  "priority": "<one of: {', '.join(allowed_priorities)}>"
+  "issue": "<one clear sentence, 10-18 words>",
+  "category": "<one category from the list above>",
+  "priority": "<High | Medium | Low>"
 }}
-
-Rules:
-- "issue" must be a short title (no newlines).
-- If the image clearly shows a laptop with a broken/cracked screen, set issue to EXACTLY: "laptop broken screen".
-- If any specific device is visible (laptop, printer, monitor, phone), include the device name in the issue when possible.
-- category and priority must match the allowed values exactly.
-- Do NOT include any instruction text inside the values.
 """
 
     try:
@@ -164,53 +203,65 @@ Rules:
 
         def _looks_like_prompt_echo(s: str) -> bool:
             ss = (s or "").lower()
-            return ("instruction" in ss) or ("do not" in ss) or ("short issue title" in ss) or ("one-6 words" in ss) or ("only valid json" in ss) or ("rules:" in ss)
+            echo_markers = [
+                "instruction", "do not", "short issue title", "only valid json",
+                "rules:", "output format", "return only", "one clear sentence",
+                "choose exactly", "10-18 words", "examples:", "good:", "bad:",
+            ]
+            return any(m in ss for m in echo_markers)
 
-        # Used only when the model echoes instructions into `issue`.
-
-        # Map common words from the raw model output into a safe issue keyword.
-        # Used only for prompt-echo cleanup.
+        # Fallback sentence map — used only when the model fails to produce a sentence.
         keyword_map = [
-            ("laptop", "laptop"),
-            ("screen", "broken screen"),
-            ("cracked", "broken"),
-            ("broken", "broken"),
-            ("damage", "broken"),
-            ("damaged", "broken"),
-            ("wifi", "wifi"),
-            ("internet", "wifi"),
-            ("printer", "printer"),
-            ("keyboard", "keyboard"),
-            ("mouse", "mouse"),
-            ("leak", "leak"),
-            ("water", "leak"),
-            ("burst", "leak"),
-            ("smell", "smell"),
-            ("dirty", "dirty"),
-            ("stain", "stain"),
-            ("delay", "delay"),
-            ("waiting", "delay"),
+            ("laptop",   "The laptop screen is broken and not working properly."),
+            ("screen",   "The screen is cracked and needs to be replaced immediately."),
+            ("cracked",  "The screen is cracked and needs to be replaced immediately."),
+            ("broken",   "The device is broken and requires immediate repair."),
+            ("damage",   "The equipment is damaged and needs to be fixed."),
+            ("wifi",     "The Wi-Fi connection is not working and needs to be restored."),
+            ("internet", "The internet connection is down and needs to be restored."),
+            ("printer",  "The printer is not working and needs to be repaired."),
+            ("keyboard", "The keyboard is not responding and needs to be replaced."),
+            ("mouse",    "The mouse is not working and needs to be checked."),
+            ("leak",     "The pipe is leaking and needs to be repaired immediately."),
+            ("water",    "There is a water leak that needs to be fixed immediately."),
+            ("dirty",    "The area is dirty and requires immediate cleaning by staff."),
+            ("stain",    "There is a visible stain that needs to be cleaned right away."),
+            ("floor",    "The floor is dirty and needs to be cleaned to avoid accidents."),
+            ("table",    "The table is messy and needs to be cleaned by staff."),
+            ("delay",    "There is a service delay that needs to be addressed quickly."),
+            ("waiting",  "Customers are waiting too long and the service needs improvement."),
+            ("smell",    "There is an unpleasant smell that needs to be investigated."),
+            ("food",     "The food quality is poor and needs to be checked by management."),
         ]
 
         def _clean_issue(text: str, raw_response_text: str) -> str:
             cleaned = _normalize_spaces(text)
-            lowered_clean = (cleaned or "").lower()
-            if "laptop" in lowered_clean and ("screen" in lowered_clean or "display" in lowered_clean):
-                return "laptop broken screen"
+
             if not cleaned or _looks_like_prompt_echo(cleaned):
                 raw_l = (raw_response_text or "").lower()
-                if "laptop" in raw_l and ("screen" in raw_l or "display" in raw_l):
-                    return "laptop broken screen"
                 for k, v in keyword_map:
                     if k in raw_l:
                         return v
                 return fallback["issue"]
 
-            # Remove trailing punctuation except a single period.
+            # Ensure it ends with a period.
             cleaned = cleaned.replace("..", ".").strip()
+            if cleaned and cleaned[-1] not in ".!?":
+                cleaned += "."
+
+            # Accept sentences in the 8–25 word range (slight buffer around 10–18).
             words = cleaned.split()
-            if len(words) > 6:
-                cleaned = " ".join(words[:6]).strip()
+            if len(words) < 5:
+                # Too short — try to find a keyword fallback from the raw response.
+                raw_l = (raw_response_text or "").lower()
+                for k, v in keyword_map:
+                    if k in raw_l:
+                        return v
+                return fallback["issue"]
+            if len(words) > 25:
+                # Trim to 20 words and re-add period.
+                cleaned = " ".join(words[:20]).rstrip(".,!?") + "."
+
             return cleaned
 
         def _normalize_for_match(value: str) -> str:
